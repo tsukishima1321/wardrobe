@@ -1,0 +1,3 @@
+[submodule "wardrobe_image"]
+	path = wardrobe_image
+	url = ./wardrobe_image

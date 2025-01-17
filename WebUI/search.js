@@ -274,6 +274,11 @@ function search() {
 
 let debounceSearch = debounce(search, 200, true);
 
+function refreshSearch(){
+    currentPage = 1;
+    debounceSearch();
+}
+
 async function updateMeta() {
     const accessToken = localStorage.getItem('wardrobe-access-token');
     let data;
