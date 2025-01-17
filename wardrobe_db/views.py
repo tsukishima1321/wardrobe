@@ -81,4 +81,65 @@ def getTypes(request):
     types = Types.objects.all()
     typeList = [t.typename for t in types]
     return HttpResponse(json.dumps(typeList), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def getImageDetail(request):
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        src = body.get('src', '')
+    else:
+        src:str = request.POST.get('src', '')
+    picture = Pictures.objects.get(href=src)
+    ocr_result = PicturesOcr.objects.filter(href=src)
+    if ocr_result:
+        ocr_result = ocr_result[0].ocr_result
+    else:
+        ocr_result = ''
+    response = {'src': picture.href, 'title': picture.description, 'type': picture.type.typename, 'date': picture.date.strftime('%Y-%m-%d'), 'text': ocr_result}
+    return HttpResponse(json.dumps(response), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def setImageDetail(request):
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        src = body.get('src', '')
+        title = body.get('title', '')
+        type = body.get('type', '')
+        date = body.get('date', '')
+    else:
+        src:str = request.POST.get('src', '')
+        title:str = request.POST.get('title', '')
+        type:str = request.POST.get('type', '')
+        date:str = request.POST.get('date', '')
+    picture = Pictures.objects.get(href=src)
+    if not picture:
+        return HttpResponse('Invalid picture', status=400)
+    if title:
+        picture.description = title
+    if type:
+        picture.type = type
+    if date:
+        picture.date = date
+    picture.save()
+    return HttpResponse('Success', content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def setImageText(request):
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        src = body.get('src', '')
+        text = body.get('text', '')
+    else:
+        src:str = request.POST.get('src', '')
+        text:str = request.POST.get('text', '')
+    ocr_result = PicturesOcr.objects.get(href=src)
+    if ocr_result:
+        ocr_result.ocr_result = text
+    else:
+        ocr_result = PicturesOcr(picture=Pictures.objects.get(href=src), ocr_result=text)
+    ocr_result.save()
+    return HttpResponse('Success', content_type='application/json')
     

@@ -1,6 +1,7 @@
 # custom #
 images
 thumbnails
+WebUI/viewerjs
 
 # Django #
 *.log

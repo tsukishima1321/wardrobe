@@ -1,0 +1,97 @@
+.header {
+    height: 5%;
+}
+
+.middle {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    height: 95%;
+    background-color: #f0f0f0;
+}
+
+.left,
+.right {
+    padding: 20px;
+}
+
+@media (max-width: 600px) {
+    .middle {
+        flex-direction: column;
+        height: auto;
+    }
+    .left,
+    .right {
+        padding: 10px;
+    }
+}
+
+.left {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#image-viewer {
+    width: 50vw;
+    height: 90vh;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #ccc;
+    padding: 0;
+}
+
+@media (max-width: 600px) {
+    #image-viewer {
+        width: 90vw;
+        height: 70vh;
+    }
+}
+
+#image-viewer img {
+    position: absolute;
+    cursor: grab;
+    transition: transform 0.25s ease;
+    padding: 0;
+}
+
+.right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 90vw;
+}
+
+h4 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+select,
+input[type='date'] {
+    padding: 5px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+textarea {
+    width: 100%;
+    height: 500px;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: none;
+}

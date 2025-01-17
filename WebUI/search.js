@@ -255,7 +255,7 @@ function search() {
                 loadImageWithToken("/image/thumbnails/" + item.src, img);
                 figure.appendChild(img);
                 figure.onclick = function () {
-                    window.open("/image/" + item.src, "_blank");
+                    let detailWindow = window.open("/detail.html?src=" + item.src, "_blank");
                 };
                 const figcaption = document.createElement('figcaption');
                 figcaption.textContent = item.title;

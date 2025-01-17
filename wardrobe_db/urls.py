@@ -2,6 +2,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.search, name='search'),
+    path('search/', views.search, name='search'),
     path('types/', views.getTypes, name='types'),
+    path('set/image/', views.setImageDetail, name='setImageDetail'),
+    path('get/image/', views.getImageDetail, name='getImageDetail'),
+    path('set/text/', views.setImageText, name='setImageText'),
 ]
