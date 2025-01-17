@@ -1,0 +1,201 @@
+@media (min-width:600px) {
+  .columns {
+    column-width: 300px;
+    column-count: auto;
+    column-fill: balance;
+    column-gap: 15px;
+    width: 90%;
+    max-width: 1800px;
+    margin: 30px auto;
+  }
+
+  .columns figure {
+    display: inline-block;
+    box-shadow: 0 1px 2px rgba(34, 25, 25, 0.4);
+    border-radius: 8px;
+    margin: 10;
+  }
+
+  .columns figure img {
+    width: 100%;
+    height: auto;
+    margin-bottom: 0px;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .columns figure figcaption {
+    padding: 10px;
+    border-radius: 0 0 8px 8px;
+    background-color: #f1f1f1;
+  }
+
+  #pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #f1f1f1;
+    padding: 10px;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  #pagination button,
+  #pagination #pageNumberInput {
+    margin: 0 5px;
+  }
+
+  #pagination #pageNumbers {
+    display: flex;
+  }
+}
+
+@media (max-width: 600px) {
+  .columns {
+    column-count: 2;
+    column-width: auto;
+    width: 100%;
+    column-gap: 3px;
+  }
+
+  .columns figure {
+    display: inline-block;
+    box-shadow: 0 1px 2px rgba(34, 25, 25, 0.4);
+    margin: 5;
+    border-radius: 4px;
+  }
+
+  .columns figure figcaption {
+    padding: 5px;
+    border-radius: 0 0 4px 4px;
+    background-color: #f1f1f1;
+  }
+
+  .columns figure img {
+    width: 100%;
+    height: auto;
+    margin-bottom: 0px;
+    border-radius: 4px 4px 0 0;
+  }
+
+  #pagination {
+    flex-direction: column;
+    align-items: flex-end;
+    right: 0;
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    padding: 10px;
+    background-color: rgba(241, 241, 241, 0.9);
+    display: flex;
+    justify-content: center;
+    position: fixed;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  #pagination #pageNumbers {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #pagination button,
+  #pagination #pageNumberInput {
+    margin: 5px 0;
+    max-width: 2.5em;
+  }
+}
+
+.searchDiv {
+  width: 80%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #f9f9f9;
+}
+
+.searchRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.searchRow label {
+  margin-right: 10px;
+}
+
+.searchRow .flowLeft {
+  float: left;
+}
+
+.searchRow .flowRight{
+  float: right;
+  margin-right: 0;
+  margin-left: auto;
+}
+
+.searchRow input[type="text"],
+.searchRow select {
+  flex: 1;
+  padding: 8px;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.searchRow input[type="date"] {
+  flex: 1;
+  padding: 0px;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.searchRow input[type="checkbox"],
+.searchRow input[type="radio"] {
+  margin-right: 5px;
+}
+
+.searchRow button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.searchRow button:hover {
+  background-color: #0056b3;
+}
+
+details {
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  padding: 0.5em 0.5em 0;
+  margin-right: 15px;
+}
+
+summary {
+  font-weight: bold;
+  margin: -0.5em -0.5em 0;
+  padding: 0.5em;
+}
+
+details[open] {
+  padding: 0.5em;
+}
+
+details[open] summary {
+  border-bottom: 1px solid #aaa;
+  margin-bottom: 0.5em;
+}
+
+#dateFrom #dateTo {
+  height: auto;
+}

@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="search.css">
+  </head>
+  <body>
+    <div class="searchDiv">
+      <div class="searchRow">
+        <input type="text" id="searchInput" onchange="debounceSearch()"
+          placeholder="搜索...">
+        <button onclick="debounceSearch()">搜索</button>
+      </div>
+      <div class="searchRow">
+        <div class="flowLeft">
+          <input type="checkbox" id="searchInTitle" checked>
+          <label for="searchInTitle">标题</label>
+          <input type="checkbox" id="searchInContent" unchecked>
+          <label for="searchInContent">内容</label>
+        </div>
+        </div>
+        <div class="searchRow">
+        <div class="flowRight">
+          <label for="sortBy">排序:</label>
+          <select id="sortBy">
+            <option>日期</option>
+            <option>文件名</option>
+            <option>标题</option>
+          </select>
+          <input type="radio" id="sortAscending" name="sortOrder" checked>
+          <label for="sortAscending">升序</label>
+          <input type="radio" id="sortDescending" name="sortOrder">
+          <label for="sortDescending">降序</label>
+        </div>
+      </div>
+      <div class="searchRow">
+        <details id="filterByDate">
+          <summary>日期过滤：</summary>
+          From：&emsp;<input type="date" id="dateFrom">
+          <BR>
+          To：&emsp;<input type="date" id="dateTo">
+        </details>
+      </div>
+      <div class="searchRow">
+        <details id="typeFilter">
+          <summary>类型过滤:</summary>
+          <label><input type="checkbox">1</label>
+          <label><input type="checkbox">2</label>
+          <label><input type="checkbox">3</label>
+        </details>
+      </div>
+    </div>
+    <div class="columns">
+    </div>
+    <div id="pagination">
+      <button onclick="previousPage()" id="prevButton">&lt;&lt;</button>
+      <span id="pageNumbers">
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
+      </span>
+      <button onclick="nextPage()" id="nextButton">&gt;&gt;</button>
+      <input onchange="goToPage()" type="number" id="pageNumberInput" min="1"
+        max="99">
+    </div>
+  </body>
+</html>
+<script src="search.js"></script>
