@@ -302,6 +302,7 @@ async function updateMeta() {
             data = await fetchJsonWithToken('/api/types/', accessToken, {});
             console.log('Types results after refresh:', data);
         } catch (refreshError) {
+            window.location.href = '/';
             console.error('Error refreshing token:', refreshError);
         }
     }

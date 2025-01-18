@@ -131,14 +131,14 @@ async function loadImage(src) {
     let text = document.getElementById('imgText');
     text.value = data.text;
 
-    const viewer = new Viewer(img, {
+    /*const viewer = new Viewer(img, {
         inline: true,
         zoomable: true,
         viewed() {
             viewer.zoomTo(4);
           },
     });
-    viewer.show();
+    viewer.show();*/
     
 }
 
