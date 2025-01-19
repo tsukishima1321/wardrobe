@@ -18,7 +18,7 @@ async function fetchSearchData(para) {
         try {
             const newTokens = await refreshAccessToken(refreshToken);
             localStorage.setItem('wardrobe-access-token', newTokens.access);
-
+            accessToken = localStorage.getItem('wardrobe-access-token');
             data = await fetchJsonWithToken('/api/search/', newTokens.access, para);
             console.log('Search results after refresh:', data);
         } catch (refreshError) {
@@ -233,7 +233,7 @@ async function updateMeta() {
         try {
             const newTokens = await refreshAccessToken(refreshToken);
             localStorage.setItem('wardrobe-access-token', newTokens.access);
-
+            accessToken = localStorage.getItem('wardrobe-access-token');
             data = await fetchJsonWithToken('/api/types/', accessToken, {});
             console.log('Types results after refresh:', data);
         } catch (refreshError) {

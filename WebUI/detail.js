@@ -16,7 +16,7 @@ async function updateMeta() {
         try {
             const newTokens = await refreshAccessToken(refreshToken);
             localStorage.setItem('wardrobe-access-token', newTokens.access);
-
+            accessToken = localStorage.getItem('wardrobe-access-token');
             data = await fetchJsonWithToken('/api/types/', accessToken, {});
             console.log('Types results after refresh:', data);
         } catch (refreshError) {
@@ -55,7 +55,7 @@ async function loadImage(src) {
           },
     });
     viewer.show();*/
-    
+
 }
 
 const src = new URLSearchParams(window.location.search).get('src');
@@ -66,7 +66,7 @@ if (src) {
 }
 
 function startEdit() {
-    if (document.getElementById('imgText').getAttribute('readonly') == true){
+    if (document.getElementById('imgText').getAttribute('readonly') == true) {
         alert('Please submit the current changes before editing image');
         return;
     }
@@ -80,11 +80,11 @@ function startEdit() {
     lineInput.type = 'text';
     lineInput.id = 'imgTitleInput';
     lineInput.value = document.getElementById('imgTitle').innerHTML;
-    document.getElementsByClassName('right')[0].insertBefore(lineInput,secondRow);
+    document.getElementsByClassName('right')[0].insertBefore(lineInput, secondRow);
 }
 
-function startEditText(){
-    if (document.getElementById('imgType').disabled == false){
+function startEditText() {
+    if (document.getElementById('imgType').disabled == false) {
         alert('Please submit the current changes before editing text');
         return;
     }
@@ -93,12 +93,25 @@ function startEditText(){
     document.getElementById('submitButtonText').style.display = 'block';
 }
 
-function submitEdit() {
+async function submitEdit() {
     const src = new URLSearchParams(window.location.search).get('src');
     const type = document.getElementById('imgType').value;
     const title = document.getElementById('imgTitleInput').value;
     const date = document.getElementById('imgDate').value;
-    fetchJsonWithToken('/api/set/image/', access_token, { src: src, type: type, title: title, date: date})
+    const ok = await checkToken(access_token);
+    if (!ok) {
+        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
+        if (!refreshToken) {
+            console.log('No refresh token found. Please log in again.');
+            window.location.href = '/login.html';
+            return;
+        } else {
+            const newTokens = await refreshAccessToken(refreshToken);
+            localStorage.setItem('wardrobe-access-token', newTokens.access);
+            return submitEdit();
+        }
+    }
+    fetchJsonWithToken('/api/set/image/', access_token, { src: src, type: type, title: title, date: date })
         .then(() => {
             window.location.reload();
         })
@@ -107,10 +120,23 @@ function submitEdit() {
         });
 }
 
-function submitEditText(){
+async function submitEditText() {
     const src = new URLSearchParams(window.location.search).get('src');
     const text = document.getElementById('imgText').value;
-    fetchJsonWithToken('/api/set/text/', access_token, { src: src, text: text})
+    const ok = await checkToken(access_token);
+    if (!ok) {
+        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
+        if (!refreshToken) {
+            console.log('No refresh token found. Please log in again.');
+            window.location.href = '/login.html';
+            return;
+        } else {
+            const newTokens = await refreshAccessToken(refreshToken);
+            localStorage.setItem('wardrobe-access-token', newTokens.access);
+            return submitEditText();
+        }
+    }
+    fetchJsonWithToken('/api/set/text/', access_token, { src: src, text: text })
         .then(() => {
             window.location.reload();
         })

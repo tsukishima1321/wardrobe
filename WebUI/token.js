@@ -82,3 +82,12 @@ let access_token = localStorage.getItem('wardrobe-access-token');
 if (!access_token) {
     window.location.href = '/login.html';
 }
+
+async function checkToken(token) {
+    const response = await fetch('/auth/', {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    });
+    return response.ok;
+}
