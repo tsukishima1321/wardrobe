@@ -28,6 +28,27 @@ class PicturesOcr(models.Model):
         db_table = 'pictures_ocr'
 
 
+class Statistics(models.Model):
+    totalamount = models.IntegerField()
+    lastyearamount = models.IntegerField()
+    lastmonthamount = models.IntegerField()
+
+    class Meta:
+        managed = True
+        db_table = 'statistics'
+
+
+class StatisticsByType(models.Model):
+    typename = models.CharField(unique=True, max_length=20, primary_key=True)
+    totalamount = models.IntegerField()
+    lastyearamount = models.IntegerField()
+    lastmonthamount = models.IntegerField()
+
+    class Meta:
+        managed = True
+        db_table = 'statistics_by_type'
+
+
 class Texts(models.Model):
     date = models.DateField()
     text = models.TextField()

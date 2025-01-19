@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, Types
+from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByType
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -139,7 +139,29 @@ def setImageText(request):
     if ocr_result:
         ocr_result.ocr_result = text
     else:
-        ocr_result = PicturesOcr(picture=Pictures.objects.get(href=src), ocr_result=text)
+        ocr_result = PicturesOcr(href=Pictures.objects.get(href=src), ocr_result=text)
     ocr_result.save()
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
-    
+
+from django.db import connection
+def updateStatistics():
+    try:
+        with connection.cursor() as cursor:
+            cursor.callproc('updatestat')  
+            return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+    except:
+        return HttpResponse('Failed to update statistics', status=400)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def getStatistics(request):
+    updateStatistics()
+    statistics = Statistics.objects.get()
+    overall = {'totalAmount': statistics.totalamount, 'lastYearAmount': statistics.lastyearamount, 'lastMonthAmount': statistics.lastmonthamount}
+    statisticsByType = StatisticsByType.objects.all()
+    typeList = []
+    for s in statisticsByType:
+        typename = Types.objects.get(typename=s.typename).typename
+        typeList.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
+    response = {'overall': overall, 'types': typeList}
+    return HttpResponse(json.dumps(response), content_type='application/json')

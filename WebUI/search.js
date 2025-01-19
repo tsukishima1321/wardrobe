@@ -1,70 +1,5 @@
 const OriginalImage = window.Image;
 
-// 创建带有 token 的图片加载函数
-async function loadImageWithToken(url, img) {
-    const token = localStorage.getItem('wardrobe-access-token') || 'default-token';
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-                // 或者使用其他 token 格式
-                // 'X-Token': token
-            }
-        });
-
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        img.src = objectUrl;
-
-        // 清理 ObjectURL
-        img.onload = () => {
-            URL.revokeObjectURL(objectUrl);
-        };
-    } catch (error) {
-        console.error('图片加载失败:', error);
-        // 可以设置一个默认图片
-        // img.src = '/default-image.jpg';
-    }
-}
-
-let access_token = localStorage.getItem('wardrobe-access-token');
-if (!access_token) {
-    window.location.href = '/';
-}
-
-async function fetchJsonWithToken(url, token, para) {
-    const response = await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify(para),
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-}
-
-async function refreshAccessToken(refreshToken) {
-    const response = await fetch('/api/refresh/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ refresh: refreshToken })
-    });
-
-    if (!response.ok) {
-        throw new Error(`Refresh token failed! status: ${response.status}`);
-    }
-
-    return response.json();
-}
-
 async function fetchSearchData(para) {
     let data = null;
     try {
@@ -76,7 +11,7 @@ async function fetchSearchData(para) {
         const refreshToken = localStorage.getItem('wardrobe-refresh-token');
         if (!refreshToken) {
             console.log('No refresh token found. Please log in again.');
-            window.location.href = '/';
+            window.location.href = '/login.html';
             return;
         }
 
@@ -291,7 +226,7 @@ async function updateMeta() {
         const refreshToken = localStorage.getItem('wardrobe-refresh-token');
         if (!refreshToken) {
             console.log('No refresh token found. Please log in again.');
-            window.location.href = '/';
+            window.location.href = '/login.html';
             return;
         }
 
@@ -302,7 +237,7 @@ async function updateMeta() {
             data = await fetchJsonWithToken('/api/types/', accessToken, {});
             console.log('Types results after refresh:', data);
         } catch (refreshError) {
-            window.location.href = '/';
+            window.location.href = '/login.html';
             console.error('Error refreshing token:', refreshError);
         }
     }

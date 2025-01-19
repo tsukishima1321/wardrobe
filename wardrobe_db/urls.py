@@ -7,4 +7,5 @@ urlpatterns = [
     path('set/image/', views.setImageDetail, name='setImageDetail'),
     path('get/image/', views.getImageDetail, name='getImageDetail'),
     path('set/text/', views.setImageText, name='setImageText'),
+    path('statistics/', views.getStatistics, name='getStatistics'),
 ]
