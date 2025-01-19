@@ -24,6 +24,7 @@
         flex-direction: column;
         height: auto;
     }
+
     .left,
     .right {
         padding: 10px;
@@ -44,6 +45,14 @@
     position: relative;
     border: 1px solid #ccc;
     padding: 0;
+}
+
+button {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
 }
 
 @media (max-width: 600px) {
@@ -74,9 +83,20 @@ h4 {
     font-size: 24px;
 }
 
+hr {
+    margin: 10px 0;
+    border: 1px solid #ccc;
+}
+
 .row {
     display: flex;
     justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.row-button {
+    display: flex;
+    justify-content: flex-end;
     margin-bottom: 10px;
 }
 
@@ -86,6 +106,15 @@ input[type='date'] {
     font-size: 16px;
     border: 1px solid #ccc;
     border-radius: 5px;
+}
+
+input[type='text'] {
+    width: 100%;
+    padding: 5px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 10px;
 }
 
 textarea {

@@ -111,7 +111,7 @@ function renderPagination() {
             const pageButton = document.createElement('button');
             pageButton.textContent = i;
             if (i === currentPage) {
-                pageButton.classList.add('active');
+                pageButton.classList.add('active-button');
             }
             pageButton.onclick = function () {
                 currentPage = i;

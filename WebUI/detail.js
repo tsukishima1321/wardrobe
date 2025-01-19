@@ -148,3 +148,57 @@ if (src) {
 } else {
     console.error('No image source specified!');
 }
+
+function startEdit() {
+    if (document.getElementById('imgText').getAttribute('readonly') == true){
+        alert('Please submit the current changes before editing image');
+        return;
+    }
+    document.getElementById('imgType').disabled = false;
+    document.getElementById('imgDate').disabled = false;
+    document.getElementById('imgDate').removeAttribute('readonly');
+    document.getElementById('editButton').style.display = 'none';
+    document.getElementById('submitButton').style.display = 'block';
+    const secondRow = document.getElementsByClassName('row')[1];
+    const lineInput = document.createElement('input');
+    lineInput.type = 'text';
+    lineInput.id = 'imgTitleInput';
+    lineInput.value = document.getElementById('imgTitle').innerHTML;
+    document.getElementsByClassName('right')[0].insertBefore(lineInput,secondRow);
+}
+
+function startEditText(){
+    if (document.getElementById('imgType').disabled == false){
+        alert('Please submit the current changes before editing text');
+        return;
+    }
+    document.getElementById('imgText').removeAttribute('readonly');
+    document.getElementById('editButtonText').style.display = 'none';
+    document.getElementById('submitButtonText').style.display = 'block';
+}
+
+function submitEdit() {
+    const src = new URLSearchParams(window.location.search).get('src');
+    const type = document.getElementById('imgType').value;
+    const title = document.getElementById('imgTitleInput').value;
+    const date = document.getElementById('imgDate').value;
+    fetchJsonWithToken('/api/set/image/', access_token, { src: src, type: type, title: title, date: date})
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error updating image:', error);
+        });
+}
+
+function submitEditText(){
+    const src = new URLSearchParams(window.location.search).get('src');
+    const text = document.getElementById('imgText').value;
+    fetchJsonWithToken('/api/set/text/', access_token, { src: src, text: text})
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error updating image:', error);
+        });
+}

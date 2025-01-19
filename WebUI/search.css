@@ -46,6 +46,11 @@
     margin: 0 5px;
   }
 
+  .active-button {
+    background-color: #b1d6ff;
+    color: rgb(0, 0, 0);
+  }
+
   #pagination #pageNumbers {
     display: flex;
   }
@@ -98,6 +103,11 @@
   #pagination #pageNumbers {
     display: flex;
     flex-direction: column;
+  }
+
+  .active-button {
+    background-color: #007bff;
+    color: white;
   }
 
   #pagination button,

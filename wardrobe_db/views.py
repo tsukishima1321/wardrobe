@@ -119,11 +119,11 @@ def setImageDetail(request):
     if title:
         picture.description = title
     if type:
-        picture.type = type
+        picture.type = Types.objects.get(typename=type)
     if date:
         picture.date = date
     picture.save()
-    return HttpResponse('Success', content_type='application/json')
+    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -141,5 +141,5 @@ def setImageText(request):
     else:
         ocr_result = PicturesOcr(picture=Pictures.objects.get(href=src), ocr_result=text)
     ocr_result.save()
-    return HttpResponse('Success', content_type='application/json')
+    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
     

@@ -4,8 +4,6 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Detail</title>
         <link rel="stylesheet" type="text/css" href="detail.css">
-        <link  href="/viewerjs/viewer.css" rel="stylesheet">
-
     </head>
     <body>
         <div class="header">
@@ -18,12 +16,31 @@
                 </div>
             </div>
             <div class="right">
-                <h4 id="imgTitle"></h4>
+                <div class="row">
+                    <h4 id="imgTitle"></h4>
+                    <button id="editButton" onclick="startEdit()">
+                        <img src="pencil-off.svg" alt="Edit">
+                    </button>
+                    <button id="submitButton" onclick="submitEdit()"
+                        style="display: none;">
+                        <img src="check.svg" alt="Submit">
+                    </button>
+                </div>
                 <div class="row">
                     <select id="imgType" disabled>
 
                     </select>
                     <input type='date' id="imgDate" readonly>
+                </div>
+                <hr>
+                <div class="row-button">
+                    <button id="editButtonText" onclick="startEditText()">
+                        <img src="pencil-off.svg" alt="Edit">
+                    </button>
+                    <button id="submitButtonText" onclick="submitEditText()"
+                        style="display: none;">
+                        <img src="check.svg" alt="Submit">
+                    </button>
                 </div>
                 <textarea id="imgText" readonly></textarea>
             </div></div>

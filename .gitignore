@@ -2,6 +2,7 @@
 images
 thumbnails
 WebUI/viewerjs
+static
 
 # Django #
 *.log
