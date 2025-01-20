@@ -171,7 +171,6 @@ import random as rand
 @permission_classes([IsAuthenticated])
 def random(request):
     typeFilter = request.query_params.get('type', '')
-    print(request.query_params)
     if typeFilter:
         pictures = Pictures.objects.filter(type=typeFilter)
     else:
