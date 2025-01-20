@@ -75,7 +75,7 @@ def search(request):
 
     return HttpResponse(json.dumps(response), content_type='application/json')
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def getTypes(request):
     types = Types.objects.all()
@@ -152,7 +152,7 @@ def updateStatistics():
     except:
         return HttpResponse('Failed to update statistics', status=400)
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def getStatistics(request):
     updateStatistics()
@@ -164,4 +164,13 @@ def getStatistics(request):
         typename = Types.objects.get(typename=s.typename).typename
         typeList.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
     response = {'overall': overall, 'types': typeList}
+    return HttpResponse(json.dumps(response), content_type='application/json')
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def random(request):
+    import random
+    pictures = Pictures.objects.all()
+    picture = random.choice(pictures)
+    response = {'src': picture.href, 'title': picture.description}
     return HttpResponse(json.dumps(response), content_type='application/json')

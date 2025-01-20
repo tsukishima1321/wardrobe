@@ -1,28 +1,5 @@
 async function updateMeta() {
-    const accessToken = localStorage.getItem('wardrobe-access-token');
-    let data;
-    try {
-        const accessToken = localStorage.getItem('wardrobe-access-token');
-        data = await fetchJsonWithToken('/api/types/', accessToken, {});
-    } catch (error) {
-        console.log('Error fetching /api/types/:', error);
-        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-        if (!refreshToken) {
-            console.log('No refresh token found. Please log in again.');
-            window.location.href = '/login.html';
-            return;
-        }
-
-        try {
-            const newTokens = await refreshAccessToken(refreshToken);
-            localStorage.setItem('wardrobe-access-token', newTokens.access);
-            accessToken = localStorage.getItem('wardrobe-access-token');
-            data = await fetchJsonWithToken('/api/types/', accessToken, {});
-            console.log('Types results after refresh:', data);
-        } catch (refreshError) {
-            console.error('Error refreshing token:', refreshError);
-        }
-    }
+    let data = await fetchDataAutoRetry('/api/types/', {}, 'GET');
     const types = document.getElementById('imgType');
     types.innerHTML = "";
     data.forEach(type => {
@@ -37,7 +14,7 @@ async function loadImage(src) {
     await updateMeta();
     let img = document.getElementById('viewedImage');
     loadImageWithToken("/image/" + src, img);
-    let data = await fetchJsonWithToken('/api/get/image/', access_token, { src: src });
+    let data = await fetchJsonWithToken('/api/get/image/', access_token, { src: src }, "POST");
     let type = document.getElementById('imgType');
     type.value = data.type;
     let title = document.getElementById('imgTitle');
@@ -46,16 +23,6 @@ async function loadImage(src) {
     date.value = data.date;
     let text = document.getElementById('imgText');
     text.value = data.text;
-
-    /*const viewer = new Viewer(img, {
-        inline: true,
-        zoomable: true,
-        viewed() {
-            viewer.zoomTo(4);
-          },
-    });
-    viewer.show();*/
-
 }
 
 const src = new URLSearchParams(window.location.search).get('src');
@@ -98,49 +65,23 @@ async function submitEdit() {
     const type = document.getElementById('imgType').value;
     const title = document.getElementById('imgTitleInput').value;
     const date = document.getElementById('imgDate').value;
-    const ok = await checkToken(access_token);
+    const ok = await fetchDataAutoRetry('/api/set/image/', { src: src, type: type, title: title, date: date });
     if (!ok) {
-        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-        if (!refreshToken) {
-            console.log('No refresh token found. Please log in again.');
-            window.location.href = '/login.html';
-            return;
-        } else {
-            const newTokens = await refreshAccessToken(refreshToken);
-            localStorage.setItem('wardrobe-access-token', newTokens.access);
-            return submitEdit();
-        }
+        console.error('Error updating image');
+        return;
+    } else {
+        window.location.reload();
     }
-    fetchJsonWithToken('/api/set/image/', access_token, { src: src, type: type, title: title, date: date })
-        .then(() => {
-            window.location.reload();
-        })
-        .catch(error => {
-            console.error('Error updating image:', error);
-        });
 }
 
 async function submitEditText() {
     const src = new URLSearchParams(window.location.search).get('src');
     const text = document.getElementById('imgText').value;
-    const ok = await checkToken(access_token);
+    const ok = await fetchDataAutoRetry('/api/set/text/', { src: src, text: text });
     if (!ok) {
-        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-        if (!refreshToken) {
-            console.log('No refresh token found. Please log in again.');
-            window.location.href = '/login.html';
-            return;
-        } else {
-            const newTokens = await refreshAccessToken(refreshToken);
-            localStorage.setItem('wardrobe-access-token', newTokens.access);
-            return submitEditText();
-        }
+        console.error('Error updating text');
+        return;
+    } else {
+        window.location.reload();
     }
-    fetchJsonWithToken('/api/set/text/', access_token, { src: src, text: text })
-        .then(() => {
-            window.location.reload();
-        })
-        .catch(error => {
-            console.error('Error updating image:', error);
-        });
 }

@@ -1,33 +1,5 @@
 const OriginalImage = window.Image;
 
-async function fetchSearchData(para) {
-    let data = null;
-    try {
-        const accessToken = localStorage.getItem('wardrobe-access-token');
-        data = await fetchJsonWithToken('/api/search/', accessToken, para);
-        console.log('Search results:', data);
-    } catch (error) {
-        console.log('Error fetching /api/search/:', error);
-        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-        if (!refreshToken) {
-            console.log('No refresh token found. Please log in again.');
-            window.location.href = '/login.html';
-            return;
-        }
-
-        try {
-            const newTokens = await refreshAccessToken(refreshToken);
-            localStorage.setItem('wardrobe-access-token', newTokens.access);
-            accessToken = localStorage.getItem('wardrobe-access-token');
-            data = await fetchJsonWithToken('/api/search/', newTokens.access, para);
-            console.log('Search results after refresh:', data);
-        } catch (refreshError) {
-            console.error('Error refreshing token:', refreshError);
-        }
-    }
-    return data;
-}
-
 let currentPage = 1;
 let maxPages = 99; // 最大页码
 
@@ -180,7 +152,7 @@ function search() {
 
     console.log(para);
 
-    let data = fetchSearchData(para);
+    let data = fetchDataAutoRetry('/api/search/', para);
     data.then(data => {
         if (data) {
             let columns = document.querySelector('.columns');
@@ -215,32 +187,7 @@ function refreshSearch(){
 }
 
 async function updateMeta() {
-    const accessToken = localStorage.getItem('wardrobe-access-token');
-    let data;
-    try {
-        const accessToken = localStorage.getItem('wardrobe-access-token');
-        data = await fetchJsonWithToken('/api/types/', accessToken, {});
-        console.log('Search results:', data);
-    } catch (error) {
-        console.log('Error fetching /api/types/:', error);
-        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-        if (!refreshToken) {
-            console.log('No refresh token found. Please log in again.');
-            window.location.href = '/login.html';
-            return;
-        }
-
-        try {
-            const newTokens = await refreshAccessToken(refreshToken);
-            localStorage.setItem('wardrobe-access-token', newTokens.access);
-            accessToken = localStorage.getItem('wardrobe-access-token');
-            data = await fetchJsonWithToken('/api/types/', accessToken, {});
-            console.log('Types results after refresh:', data);
-        } catch (refreshError) {
-            window.location.href = '/login.html';
-            console.error('Error refreshing token:', refreshError);
-        }
-    }
+    let data = await fetchDataAutoRetry('/api/types/', {}, 'GET');
     const typeFilter = document.getElementById('typeFilter');
     typeFilter.innerHTML = "<summary>类型过滤:</summary>";
     data.forEach(type => {
@@ -257,3 +204,9 @@ async function updateMeta() {
 updateMeta();
 // 初始化分页
 renderPagination();
+
+const key = new URLSearchParams(window.location.search).get('key');
+if (key) {
+    document.getElementById('searchInput').value = key;
+    search();
+}

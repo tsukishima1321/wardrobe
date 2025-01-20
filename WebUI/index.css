@@ -1,0 +1,168 @@
+.header {
+    margin: 0;
+    height: 5%;
+    display: flex;
+    background-color: rgb(196, 210, 255);
+}
+
+.header h1 {
+    font-size: 16px;
+    margin: 0;
+    margin-left: 20;
+    margin-right: 10;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.footer {
+    margin: 0;
+    background-color: rgb(196, 210, 255);
+    height: 2%;
+}
+
+.header button {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 4px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.header button:hover {
+    background-color: #f0f0f0;
+}
+
+.body {
+    height: 89vh;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+}
+
+@media (max-width: 600px) {
+    .body {
+        height: auto;
+        flex-direction: column;
+    }
+}
+
+#right-column {
+    display: inline-block;
+    vertical-align: top;
+    padding: 1%;
+}
+
+#left-column {
+    display: column;
+    flex-direction: column;
+    width: 75%;
+    border-right: 1px solid #ccc;
+}
+
+.random-images {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+}
+
+#right-column {
+    width: 20%;
+}
+
+.random-image,
+#search,
+#statistics {
+    margin-bottom: 20px;
+}
+
+.random-image img {
+    max-width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
+.image-viewer {
+    height: 60vh;
+    width: 30vw;
+    overflow: scroll;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+    .random-images {
+        height: auto;
+        flex-direction: column;
+        border-bottom: 1px solid #ccc;
+    }
+
+    #left-column {
+        width: 100%;
+        border-bottom: 1px solid #ccc;
+        border-right: none;
+    }
+
+    #right-column {
+        width: 100%;
+    }
+
+    .image-viewer {
+        width: auto;
+        height: 50vh;
+    }
+}
+
+.random-image button {
+    padding: 5px;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+.image-info {
+    text-align: center;
+}
+
+#search input {
+    width: 80%;
+    padding: 5px;
+    margin-right: 5px;
+}
+
+#search button {
+    padding: 5px;
+}
+
+#statistics h2 {
+    margin-top: 0;
+}
+
+#types-statistics {
+    height: 70%;
+    width: auto;
+    display: flex;
+    flex-wrap: wrap;
+    overflow-y: scroll;
+}
+
+@media (max-width: 600px) {
+    #types-statistics {
+        height: auto;
+    }
+}
+
+#types-statistics div {
+    width: 48%;
+    margin: 1%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+}
+
+#types-statistics div p {
+    margin: 5px 0;
+}

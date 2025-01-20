@@ -1,5 +1,37 @@
 .header {
+    margin: 0;
     height: 5%;
+    display: flex;
+    background-color: rgb(196, 210, 255);
+}
+
+.header h1 {
+    font-size: 16px;
+    margin: 0;
+    margin-left: 20;
+    margin-right: 10;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.footer {
+    margin: 0;
+    background-color: rgb(196, 210, 255);
+    height: 2%;
+}
+
+.header button {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 4px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.header button:hover {
+    background-color: #f0f0f0;
 }
 
 .middle {
@@ -10,7 +42,7 @@
     flex-direction: row;
     justify-content: center;
     align-items: flex-start;
-    height: 95%;
+    height: 91%;
     background-color: #f0f0f0;
 }
 
@@ -40,7 +72,7 @@
 
 #image-viewer {
     width: 50vw;
-    height: 90vh;
+    height: 86vh;
     overflow: scroll;
     position: relative;
     border: 1px solid #ccc;

@@ -7,8 +7,59 @@
         <link rel="icon" type="image/x-icon" href="favicon.ico" />
     </head>
     <body>
-        
+        <div class="header">
+            <h1>静寂的壁橱</h1>
+        </div>
+        <div class="body">
+            <div id="left-column">
+                <h2>随机图片</h2>
+                <div class="random-images">
+                    <div class="random-image">
+                        <div class="image-viewer">
+                            <img class="viewedImage" alt="Image Viewer">
+                        </div>
+                        <div class="image-info">
+                            <h4 class="imgTitle"></h4>
+                            <p class="imgDate"></p>
+                        </div>
+                        <button class="randomButton">换一张</button>
+                        <button class="detailButton">查看详情</button>
+                    </div>
+                    <div class="random-image">
+                        <div class="image-viewer">
+                            <img class="viewedImage" alt="Image Viewer">
+                        </div>
+                        <div class="image-info">
+                            <h4 class="imgTitle"></h4>
+                            <p class="imgDate"></p>
+                        </div>
+                        <button class="randomButton">换一张</button>
+                        <button class="detailButton">查看详情</button>
+                    </div>
+                </div>
+                <div id="search">
+                    <h2>搜索</h2>
+                    <input type="text" id="searchText" placeholder="输入关键字">
+                    <button id="searchButton" onclick="search()">搜索</button>
+                </div>
+            </div>
+            <div id="right-column">
+                <div id="statistics">
+                    <div id="overall-statistics">
+                        <h2>统计：</h2>
+                        <p>总数: <span id="overall-total"></span></p>
+                        <p>本年新增: <span id="overall-last-year"></span></p>
+                        <p>本月新增: <span id="overall-last-month"></span></p>
+                    </div>
+                    <h2>分类统计：</h2>
+                    <div id="types-statistics"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <p></p>
     </body>
-</html>
+</html></div>
 <script src="token.js"></script>
 <script src="index.js"></script>

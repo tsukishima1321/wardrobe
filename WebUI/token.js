@@ -44,17 +44,31 @@ async function loadImageWithToken(url, img) {
     }
 }
 
-async function fetchJsonWithToken(url, token, para) {
-    const response = await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify(para),
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        }
-    });
+async function fetchJsonWithToken(url, token, para, method) {
+    let response;
+    if (method == 'POST') {
+        response = await fetch(url, {
+            method: "POST",
+            body: JSON.stringify(para),
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        });
+    } else {
+        response = await fetch(url, {
+            method: "GET",
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        });
+    }
 
     if (!response.ok) {
+        if (response.status === 401) {
+            return { message: 'not authorized' };
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -75,6 +89,37 @@ async function refreshAccessToken(refreshToken) {
     }
 
     return response.json();
+}
+
+async function fetchDataAutoRetry(url, para, method = 'POST') {
+    let data;
+    try {
+        let accessToken = localStorage.getItem('wardrobe-access-token');
+        data = await fetchJsonWithToken(url, accessToken, para, method);
+        if (data.message === 'not authorized') {
+            const refreshToken = localStorage.getItem('wardrobe-refresh-token');
+            if (!refreshToken) {
+                console.log('No refresh token found. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            try {
+                const newTokens = await refreshAccessToken(refreshToken);
+                localStorage.setItem('wardrobe-access-token', newTokens.access);
+                accessToken = localStorage.getItem('wardrobe-access-token');
+                data = await fetchJsonWithToken(url, accessToken, para, method);
+            } catch (refreshError) {
+                window.location.href = '/login.html';
+                console.error('Error refreshing token:', refreshError);
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return null;
+    }
+    return data;
 }
 
 
