@@ -22,6 +22,7 @@
                             <h4 class="imgTitle"></h4>
                             <p class="imgDate"></p>
                         </div>
+                        <select class="randomType"></select>
                         <button class="randomButton">换一张</button>
                         <button class="detailButton">查看详情</button>
                     </div>
@@ -33,13 +34,14 @@
                             <h4 class="imgTitle"></h4>
                             <p class="imgDate"></p>
                         </div>
+                        <select class="randomType"></select>
                         <button class="randomButton">换一张</button>
                         <button class="detailButton">查看详情</button>
                     </div>
                 </div>
                 <div id="search">
                     <h2>搜索</h2>
-                    <input type="text" id="searchText" placeholder="输入关键字">
+                    <input type="text" id="searchText" placeholder="输入关键字" onchange="search()"/>
                     <button id="searchButton" onclick="search()">搜索</button>
                 </div>
             </div>

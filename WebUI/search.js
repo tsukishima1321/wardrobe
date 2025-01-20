@@ -181,7 +181,7 @@ function search() {
 
 let debounceSearch = debounce(search, 200, true);
 
-function refreshSearch(){
+function refreshSearch() {
     currentPage = 1;
     debounceSearch();
 }
@@ -201,12 +201,12 @@ async function updateMeta() {
     });
 }
 
-updateMeta();
+updateMeta().then(() => {
+    const key = new URLSearchParams(window.location.search).get('key');
+    if (key) {
+        document.getElementById('searchInput').value = key;
+        refreshSearch();
+    }
+});
 // 初始化分页
 renderPagination();
-
-const key = new URLSearchParams(window.location.search).get('key');
-if (key) {
-    document.getElementById('searchInput').value = key;
-    search();
-}

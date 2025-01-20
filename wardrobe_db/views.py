@@ -166,11 +166,16 @@ def getStatistics(request):
     response = {'overall': overall, 'types': typeList}
     return HttpResponse(json.dumps(response), content_type='application/json')
 
+import random as rand
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def random(request):
-    import random
-    pictures = Pictures.objects.all()
-    picture = random.choice(pictures)
+    typeFilter = request.query_params.get('type', '')
+    print(request.query_params)
+    if typeFilter:
+        pictures = Pictures.objects.filter(type=typeFilter)
+    else:
+        pictures = Pictures.objects.all()
+    picture = rand.choice(pictures)
     response = {'src': picture.href, 'title': picture.description}
     return HttpResponse(json.dumps(response), content_type='application/json')

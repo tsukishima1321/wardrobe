@@ -59,7 +59,7 @@ async function fetchJsonWithToken(url, token, para, method) {
         response = await fetch(url, {
             method: "GET",
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'form-data',
                 'Authorization': 'Bearer ' + token
             }
         });

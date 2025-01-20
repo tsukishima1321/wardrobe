@@ -1,4 +1,4 @@
-async function updateStat(){
+async function updateStat() {
     let data = await fetchDataAutoRetry('/api/statistics/', {}, 'GET');
     /*{
     "overall": {
@@ -72,21 +72,26 @@ async function updateStat(){
     });
 }
 
-async function randomImage(index){
+async function randomImage(index) {
     let img = document.getElementsByClassName('viewedImage')[index];
-    let data = await fetchDataAutoRetry('/api/random/', {}, 'GET');
+    let data;
+    if (document.getElementsByClassName('randomType')[index].value == "全部") {
+        data = await fetchDataAutoRetry('/api/random/', {}, 'GET');
+    } else {
+        data = await fetchDataAutoRetry('/api/random/?type=' + document.getElementsByClassName('randomType')[index].value, {}, 'GET');
+    }
     loadImageWithToken("/image/thumbnails/" + data.src, img);
     img.setAttribute('ori-src', data.src);
 }
 
-function showDetail(index){
+function showDetail(index) {
     let src = document.getElementsByClassName('viewedImage')[index].getAttribute('ori-src');
     let url = new URL("detail.html", window.location.href);
     url.searchParams.set('src', src);
     window.open(url.href, "_blank");
 }
 
-function search(){
+function search() {
     let keyword = document.getElementById('searchText').value;
     let url = new URL("search.html", window.location.href);
     url.searchParams.set('key', keyword);
@@ -95,20 +100,40 @@ function search(){
 
 randomButtons = document.getElementsByClassName('randomButton');
 for (let i = 0; i < randomButtons.length; i++) {
-    randomButtons[i].onclick = function(){
+    randomButtons[i].onclick = function () {
         randomImage(i);
     }
 }
 
 detailButtons = document.getElementsByClassName('detailButton');
 for (let i = 0; i < detailButtons.length; i++) {
-    detailButtons[i].onclick = function(){
+    detailButtons[i].onclick = function () {
         showDetail(i);
     }
 }
 
-updateStat();
-
-for (let i = 0; i < document.getElementsByClassName('viewedImage').length; i++) {
-    randomImage(i);
+async function updateTypes() {
+    let data = await fetchDataAutoRetry('/api/types/', {}, 'GET');
+    const types = document.getElementsByClassName('randomType');
+    for (let i = 0; i < types.length; i++) {
+        types[i].innerHTML = "";
+        const option = document.createElement('option');
+        option.value = "全部";
+        option.innerHTML = "全部";
+        types[i].appendChild(option);
+        data.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.innerHTML = type;
+            types[i].appendChild(option);
+        });
+    }
+    types[0].value = "美图";
 }
+
+updateStat();
+updateTypes().then(() => {
+    for (let i = 0; i < document.getElementsByClassName('viewedImage').length; i++) {
+        randomImage(i);
+    }
+});
