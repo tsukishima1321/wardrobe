@@ -64,3 +64,12 @@ class Types(models.Model):
     class Meta:
         managed = True
         db_table = 'types'
+
+class OcrMission(models.Model):
+    id = models.AutoField(primary_key=True)
+    href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
+    status = models.CharField(max_length=20)
+
+    class Meta:
+        managed = True
+        db_table = 'ocr_mission'

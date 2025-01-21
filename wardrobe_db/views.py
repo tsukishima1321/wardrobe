@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByType
+from django.http import HttpRequest
+from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByType, OcrMission
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -178,3 +179,46 @@ def random(request):
     picture = rand.choice(pictures)
     response = {'src': picture.href, 'title': picture.description}
     return HttpResponse(json.dumps(response), content_type='application/json')
+
+import requests
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def newImage(request):
+    url = 'http://127.0.0.1:1096/api/upload/'
+    headers = {'Authorization': request.headers['Authorization']}
+    res = requests.post(url, files=request.FILES, headers=headers)
+    if res.status_code == 200:
+        data = json.loads(res.text)
+        src = data['name']
+        title:str = request.POST.get('title', '')
+        type:str = request.POST.get('type', '')
+        date:str = request.POST.get('date', '')
+        if not title or not type or not date:
+            return HttpResponse('Invalid parameters', status=400)
+        picture = Pictures(href=src, description=title, type=Types.objects.get(typename=type), date=date)
+        picture.save()
+        doOCR = request.POST.get('doOCR', False)
+        if doOCR:
+            ocrmission = OcrMission(href=Pictures.objects.get(href=src), status='waiting')
+            ocrmission.save()
+        return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+    else:
+        return HttpResponse(res.text, status=400)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def newType(request):
+    typename:str = request.POST.get('typename', '')
+    exist = Types.objects.filter(typename=typename)
+    if exist:
+        return HttpResponse('Type already exists', status=400)
+    type = Types(typename=typename)
+    type.save()
+    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getOcrMission(request):
+    missions = OcrMission.objects.all()
+    missionList = [{'src': m.href.href, 'status': m.status} for m in missions]
+    return HttpResponse(json.dumps(missionList), content_type='application/json')
