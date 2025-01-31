@@ -30,22 +30,16 @@
     background-color: #f0f0f0;
 }
 
+.left {
+    display: flex;
+    flex-direction: column;
+}
+
 .left,
 .right {
     padding: 20px;
 }
 
-@media (max-width: 600px) {
-    .body {
-        flex-direction: column;
-        height: auto;
-    }
-
-    .left,
-    .right {
-        padding: 10px;
-    }
-}
 
 .left {
     flex: 1;
@@ -56,7 +50,7 @@
 
 #image-viewer {
     width: 50vw;
-    height: 86vh;
+    height: 83vh;
     overflow: scroll;
     position: relative;
     border: 1px solid #ccc;
@@ -110,10 +104,39 @@ hr {
     margin-bottom: 10px;
 }
 
+#fileInput {
+    margin-bottom: 10px;
+}
+
+.right-row {
+    display: flex;
+}
+
 .row-button {
     display: flex;
     justify-content: flex-end;
     margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+    .body {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .left,
+    .right {
+        padding: 10px;
+    }
+
+    .right-row {
+        margin-top: 10px;
+    }
 }
 
 select,
@@ -141,4 +164,50 @@ textarea {
     border: 1px solid #ccc;
     border-radius: 5px;
     resize: none;
+}
+
+input[type='checkbox'].switch{
+    padding-left: 5px;
+    margin-top: auto;
+    margin-bottom: auto;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    width: 40px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 10px;
+    transition: border-color .3s, background-color .3s;
+}
+
+label {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+input[type='checkbox'].switch::after {
+    content: '';
+    display: inline-block;
+    width: 1rem;
+    height:1rem;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0, 0, 2px, #999;
+    transition:.4s;
+    top: 2px;
+    position: absolute;
+    left: 2px;
+}
+
+input[type='checkbox'].switch:checked {
+    background: rgb(19, 206, 102);
+}
+/* 当input[type=checkbox]被选中时：伪元素显示下面样式 位置发生变化 */
+input[type='checkbox'].switch:checked::after {
+    content: '';
+    position: absolute;
+    left: 55%;
+    top: 2px;
 }

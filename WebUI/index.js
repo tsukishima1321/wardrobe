@@ -1,39 +1,5 @@
 async function updateStat() {
     let data = await fetchDataAutoRetry('/api/statistics/', {}, 'GET');
-    /*{
-    "overall": {
-        "totalAmount": 1674,
-        "lastYearAmount": 24,
-        "lastMonthAmount": 24
-    },
-    "types": [
-        {
-            "type": "MEMEs",
-            "totalAmount": 184,
-            "lastYearAmount": 3,
-            "lastMonthAmount": 3
-        },
-        {
-            "type": "其他",
-            "totalAmount": 188,
-            "lastYearAmount": 5,
-            "lastMonthAmount": 5
-        },
-        {
-            "type": "美图",
-            "totalAmount": 205,
-            "lastYearAmount": 8,
-            "lastMonthAmount": 8
-        },
-        {
-            "type": "聊天记录",
-            "totalAmount": 662,
-            "lastYearAmount": 5,
-            "lastMonthAmount": 5
-        },
-        ......
-    ]
-    } */
     let overall = data.overall;
     let types = data.types;
     let totalAmount = overall.totalAmount;
@@ -46,7 +12,7 @@ async function updateStat() {
     let typesStatisticsDiv = document.getElementById("types-statistics");
     typesStatisticsDiv.innerHTML = ""; // Clear previous content
 
-    types = types.sort((a, b) => b.totalAmount - a.totalAmount);
+    types = types.sort((a, b) => b.lastMonthAmount - a.lastMonthAmount);
 
     types.forEach(type => {
         let typeDiv = document.createElement("div");

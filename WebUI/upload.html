@@ -1,0 +1,56 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>静寂的壁橱</title>
+        <link rel="stylesheet" href="index.css">
+        <link rel="stylesheet" type="text/css" href="header.css">
+        <link rel="stylesheet" type="text/css" href="upload.css">
+        <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    </head>
+    <body>
+        <div class="header">
+            <h1>上传</h1>
+            <div class="nav">
+                <img src="favicon.ico" alt="logo">
+                <a href="index.html">首页</a>
+            <img src="search.svg" alt="logo">
+            <a href="search.html">搜索</a>
+            <img src="upload.svg" alt="logo">
+            <a href="upload.html">上传</a>
+            </div>
+        </div>
+        <div class="body">
+            <div class="left">
+                <input type="file" id="fileInput" accept="image/*" onchange="previewImage()">
+                <div id="image-viewer">
+                    <img id="viewedImage" alt="Image Viewer">
+                </div>
+            </div>
+            <div class="right">
+                <div class="row">
+                    <h4 id="imgTitle"></h4>
+                </div>
+                <div class="row">
+                    <select id="imgType" disabled>
+
+                    </select>
+                    <div class="right-row">
+                        <input type='date' id="imgDate" readonly>
+                        <input type='checkbox' id="imgOCR" checked="true" class="switch">
+                        <label for="imgOCR">是否启用OCR</label>
+                    </div>  
+                </div>
+                <button id="submitButton" onclick="submitEdit()"
+                        style="display: none;">
+                        <img src="check.svg" alt="Submit">
+                </button>
+                <hr>
+            </div>
+        </div>
+        <div class="footer">
+            <p></p>
+    </body>
+</html></div>
+<script src="token.js"></script>
+<script src="upload.js"></script>

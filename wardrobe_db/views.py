@@ -198,9 +198,12 @@ def newImage(request):
         picture = Pictures(href=src, description=title, type=Types.objects.get(typename=type), date=date)
         picture.save()
         doOCR = request.POST.get('doOCR', False)
-        if doOCR:
+        if doOCR and doOCR != 'false':
             ocrmission = OcrMission(href=Pictures.objects.get(href=src), status='waiting')
             ocrmission.save()
+        else:
+            ocr_result = PicturesOcr(href=Pictures.objects.get(href=src), ocr_result='')
+            ocr_result.save()
         return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
     else:
         return HttpResponse(res.text, status=400)
