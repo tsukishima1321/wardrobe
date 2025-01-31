@@ -37,6 +37,9 @@ function startEdit() {
 }
 
 async function submitEdit() {
+    const loadingScreen = document.getElementById('loading-screen');
+    loadingScreen.style.display = 'flex';
+
     const type = document.getElementById('imgType').value;
     const title = document.getElementById('imgTitleInput').value;
     const date = document.getElementById('imgDate').value;
@@ -62,15 +65,15 @@ async function submitEdit() {
         if (!response.ok) {
             alert('上传失败!');
             console.error('Submit edit failed:', response);
+            loadingScreen.style.display = 'none';
             return;
-        } else {
-            alert('上传成功!');
         }
     }else{
         const refreshToken = localStorage.getItem('wardrobe-refresh-token');
         if (!refreshToken) {
             console.error('Refresh token not found!');
             window.location.href = '/login.html';
+            loadingScreen.style.display = 'none';
             return;
         }
         try {
@@ -91,11 +94,12 @@ async function submitEdit() {
         if (!response.ok) {
             alert('上传失败!');
             console.error('Submit edit failed:', response);
+            loadingScreen.style.display = 'none';
             return;
-        } else {
-            alert('上传成功!');
         }
     }
+    loadingScreen.style.display = 'none';
+    alert('上传成功!');
 }
 
 updateMeta();

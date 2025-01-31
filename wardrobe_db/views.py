@@ -198,7 +198,7 @@ def newImage(request):
         picture = Pictures(href=src, description=title, type=Types.objects.get(typename=type), date=date)
         picture.save()
         doOCR = request.POST.get('doOCR', False)
-        if doOCR and doOCR != 'false':
+        if doOCR and doOCR != 'false' and doOCR != 'False':
             ocrmission = OcrMission(href=Pictures.objects.get(href=src), status='waiting')
             ocrmission.save()
         else:
