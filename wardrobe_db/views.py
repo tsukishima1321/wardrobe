@@ -144,14 +144,12 @@ def setImageText(request):
     ocr_result.save()
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
-from django.db import connection
+from django.db import connections
 def updateStatistics():
-    try:
-        with connection.cursor() as cursor:
-            cursor.callproc('updatestat')  
-            return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
-    except:
-        return HttpResponse('Failed to update statistics', status=400)
+    connection = connections['business']
+    with connection.cursor() as cursor:
+        cursor.callproc('updatestat')
+        return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
