@@ -54,7 +54,7 @@ async function submitEdit() {
     formData.append('image', document.getElementById('fileInput').files[0]);
 
     const token = localStorage.getItem('wardrobe-access-token');
-    if (checkToken(token)) {
+    if (await checkToken(token)) {
         const response = await fetch(url, {
             method: 'POST',
             body: formData,
