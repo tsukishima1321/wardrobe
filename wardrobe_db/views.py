@@ -1,10 +1,12 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from django.http import HttpRequest
 from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByType, OcrMission
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
+
+from django.conf import settings
+LOCALHOST = settings.LOCALHOST
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -83,6 +85,8 @@ def getTypes(request):
     typeList = [t.typename for t in types]
     return HttpResponse(json.dumps(typeList), content_type='application/json')
 
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def getImageDetail(request):
@@ -124,6 +128,28 @@ def setImageDetail(request):
     if date:
         picture.date = date
     picture.save()
+    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def deleteImage(request):
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        src = body.get('src', '')
+    else:
+        src:str = request.POST.get('src', '')
+    picture = Pictures.objects.filter(href=src)
+    if not picture:
+        return HttpResponse('Invalid picture', status=400)
+    picture.delete()
+    ocr_result = PicturesOcr.objects.filter(href=src)
+    if ocr_result:
+        ocr_result.delete()
+    url = LOCALHOST + '/api/deletefile/'
+    headers = {'Authorization': request.headers['Authorization']}
+    res = requests.post(url, data={'imageName': src}, headers=headers)
+    if res.status_code != 200:
+        return HttpResponse(res.text, status=400)
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
 @api_view(['POST'])
@@ -182,7 +208,7 @@ import requests
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def newImage(request):
-    url = 'http://127.0.0.1:1096/api/upload/'
+    url = LOCALHOST + '/api/upload/'
     headers = {'Authorization': request.headers['Authorization']}
     res = requests.post(url, files=request.FILES, headers=headers)
     if res.status_code == 200:
@@ -215,6 +241,41 @@ def newType(request):
         return HttpResponse('Type already exists', status=400)
     type = Types(typename=typename)
     type.save()
+    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def renameType(request):
+    oldName:str = request.POST.get('oldName', '')
+    newName:str = request.POST.get('newName', '')
+    type = Types.objects.filter(typename=oldName)
+    if not type:
+        return HttpResponse('Type does not exist', status=400)
+    if Types.objects.filter(typename=newName):
+        return HttpResponse('New type name already exists', status=400)
+    type = type[0]
+    type.typename = newName
+    type.save()
+    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def deleteType(request):
+    typename:str = request.POST.get('typename', '')
+    type = Types.objects.filter(typename=typename)
+    if not type:
+        return HttpResponse('Type does not exist', status=400)
+    altType = request.POST.get('altType', '')
+    if altType:
+        altTypeObj = Types.objects.filter(typename=altType)
+        if not altTypeObj:
+            return HttpResponse('Alternative type does not exist', status=400)
+        Pictures.objects.filter(type=typename).update(type=altTypeObj[0])
+    
+        type = type[0]
+        type.delete()
+    else:
+        return HttpResponse('Alternative type is required', status=400)
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
 @api_view(['GET'])
