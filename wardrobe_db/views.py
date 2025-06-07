@@ -268,12 +268,7 @@ def renameType(request):
     type = Types.objects.get(typename=oldName)
     statisticsByType = StatisticsByType.objects.filter(typename=oldName)
     if statisticsByType:
-        statisticsByType = statisticsByType[0]
-        statisticsByType.typename = newName
-        statisticsByType.save()
-    else:
-        statisticsByType = StatisticsByType(typename=newName, totalamount=0, lastyearamount=0, lastmonthamount=0)
-        statisticsByType.save()
+        statisticsByType.delete()
     type.delete()
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
