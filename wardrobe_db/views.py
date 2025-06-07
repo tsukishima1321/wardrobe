@@ -235,7 +235,11 @@ def newImage(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def newType(request):
-    typename:str = request.POST.get('typename', '')
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        typename:str = body.get('typename', '')
+    else:
+        typename:str = request.POST.get('typename', '')
     exist = Types.objects.filter(typename=typename)
     if exist:
         return HttpResponse('Type already exists', status=400)
@@ -246,32 +250,54 @@ def newType(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def renameType(request):
-    oldName:str = request.POST.get('oldName', '')
-    newName:str = request.POST.get('newName', '')
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        oldName:str = body.get('oldName', '')
+        newName:str = body.get('newName', '')
+    else:
+        oldName:str = request.POST.get('oldName', '')
+        newName:str = request.POST.get('newName', '')
     type = Types.objects.filter(typename=oldName)
     if not type:
         return HttpResponse('Type does not exist', status=400)
     if Types.objects.filter(typename=newName):
         return HttpResponse('New type name already exists', status=400)
-    type = type[0]
-    type.typename = newName
+    type = Types(typename=newName)
     type.save()
+    Pictures.objects.filter(type=oldName).update(type=newName)
+    type = Types.objects.get(typename=oldName)
+    statisticsByType = StatisticsByType.objects.filter(typename=oldName)
+    if statisticsByType:
+        statisticsByType = statisticsByType[0]
+        statisticsByType.typename = newName
+        statisticsByType.save()
+    else:
+        statisticsByType = StatisticsByType(typename=newName, totalamount=0, lastyearamount=0, lastmonthamount=0)
+        statisticsByType.save()
+    type.delete()
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def deleteType(request):
-    typename:str = request.POST.get('typename', '')
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        typename:str = body.get('typename', '')
+        altType = body.get('altType', '')
+    else:
+        typename:str = request.POST.get('typename', '')
+        altType = request.POST.get('altType', '')
     type = Types.objects.filter(typename=typename)
     if not type:
         return HttpResponse('Type does not exist', status=400)
-    altType = request.POST.get('altType', '')
+    
     if altType:
         altTypeObj = Types.objects.filter(typename=altType)
         if not altTypeObj:
             return HttpResponse('Alternative type does not exist', status=400)
         Pictures.objects.filter(type=typename).update(type=altTypeObj[0])
-    
+        statisticsByType = StatisticsByType.objects.filter(typename=typename)
+        statisticsByType.delete()
         type = type[0]
         type.delete()
     else:
