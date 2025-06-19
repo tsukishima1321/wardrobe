@@ -33,6 +33,63 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
+# 日志配置
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        "default": {
+            "format": '%(asctime)s %(name)s  %(pathname)s:%(lineno)d %(module)s:%(funcName)s '
+                      '%(levelname)s- %(message)s',
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'default'
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/debug.log'),
+            'when': "D",
+            'interval': 1,
+            'formatter': 'default'
+        },
+    },
+    'loggers': {
+        # 应用中自定义日志记录器
+        'db': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+            'propagate': True,
+        },
+        'ocr': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+            'propagate': True,
+        },
+        'imagebed': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+            'propagate': True,
+        },
+    },
+    "root": {
+        "handlers": ["console",'file'],
+        "level": "DEBUG",
+    },
+}
 
 # Application definition
 
