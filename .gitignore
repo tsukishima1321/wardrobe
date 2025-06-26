@@ -1,8 +1,9 @@
 # custom #
 images
 thumbnails
-WebUI/viewerjs
 static
+
+logs
 
 # Django #
 *.log

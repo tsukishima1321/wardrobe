@@ -54,17 +54,17 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'default'
+            'formatter': 'simple'
         },
         'file': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.handlers.TimedRotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/debug.log'),
             'when': "D",
             'interval': 1,
-            'formatter': 'default'
+            'formatter': 'simple'
         },
     },
     'loggers': {
@@ -151,12 +151,20 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': 'db.sqlite3',
     },
+    #'business':{
+    #    'ENGINE':'django.db.backends.mysql',
+    #    'NAME':os.environ['closet_db_name'],
+    #    'HOST':'127.0.0.1',
+    #    'PORT':3306,
+    #    'USER':os.environ['closet_db_user_name'],
+    #    'PASSWORD':os.environ['closet_db_password'],
+    #},
     'business':{
-        'ENGINE':'django.db.backends.mysql',
-        'NAME':os.environ['closet_db_name'],
+        'ENGINE':'django.db.backends.postgresql',
+        'NAME':'wardrobe',
         'HOST':'127.0.0.1',
-        'PORT':3306,
-        'USER':os.environ['closet_db_user_name'],
+        'PORT':5432,
+        'USER':'postgres',
         'PASSWORD':os.environ['closet_db_password'],
     }
 }
