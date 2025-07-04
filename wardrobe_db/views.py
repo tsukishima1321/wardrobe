@@ -311,6 +311,34 @@ def getOcrMission(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def newOcrMission(request):
+    if(request.content_type == 'application/json'):
+        body = json.loads(request.body)
+        src = body.get('src', '')
+    else:
+        src:str = request.POST.get('src', '')
+    
+    if not Pictures.objects.filter(href=src):
+        return HttpResponse('Picture does not exist', status=400)
+    
+    if OcrMission.objects.filter(href=Pictures.objects.get(href=src)):
+        mission = OcrMission.objects.get(href=Pictures.objects.get(href=src))
+        if mission.status != 'finished':
+            return HttpResponse('Mission already exists', status=400)
+        else:
+            mission.status = 'waiting'
+            mission.save()
+            # Reset the OCR result if the mission is reset
+            logger.info(f'OCR mission for {src} has been reset.')
+        return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+    mission = OcrMission(href=Pictures.objects.get(href=src), status='waiting')
+    mission.save()
+    
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def resetOcrMission(request):
     if(request.content_type == 'application/json'):
         body = json.loads(request.body)

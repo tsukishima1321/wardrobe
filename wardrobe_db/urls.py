@@ -17,6 +17,7 @@ urlpatterns = [
     path('type/rename/', views.renameType, name='renameType'),
     path('type/delete/', views.deleteType, name='deleteType'),
     path('ocrmission/get/', views.getOcrMission, name='getOcrMission'),
+    path('ocrmission/new/', views.newOcrMission, name='newOcrMission'),
     path('ocrmission/reset/', views.resetOcrMission, name='resetOcrMission'),
     path('ocrmission/execute/', views.excuteOcrMission, name='excuteOcrMission'),
     path('ocrmission/executeall/', views.excuteAllOcrMission, name='excuteAllOcrMission'),
