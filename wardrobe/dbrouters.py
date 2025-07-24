@@ -5,13 +5,13 @@ class BusinessDBRouter:
 
     def db_for_read(self, model, **hints):
         """Directs read operations for business app models to 'business'."""
-        if model._meta.app_label == 'wardrobe_db':
+        if model._meta.app_label == 'wardrobe_db' or model._meta.app_label == 'wardrobe_diary':
             return 'business'
         return 'default'
 
     def db_for_write(self, model, **hints):
         """Directs write operations for business app models to 'business'."""
-        if model._meta.app_label == 'wardrobe_db':
+        if model._meta.app_label == 'wardrobe_db' or model._meta.app_label == 'wardrobe_diary':
             return 'business'
         return 'default'
 
@@ -25,7 +25,7 @@ class BusinessDBRouter:
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         """Ensures that the business app's models get created on the right database."""
-        if app_label == 'wardrobe_db':
+        if app_label == 'wardrobe_db' or app_label == 'wardrobe_diary':
             return db == 'business'
         else:
             return db == 'default'

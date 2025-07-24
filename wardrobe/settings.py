@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'wardrobe_image',
     'wardrobe_db',
+    'wardrobe_diary',
 ]
 
 MIDDLEWARE = [

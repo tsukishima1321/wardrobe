@@ -48,16 +48,6 @@ class StatisticsByType(models.Model):
         managed = True
         db_table = 'statistics_by_type'
 
-
-class Texts(models.Model):
-    date = models.DateField()
-    text = models.TextField()
-
-    class Meta:
-        managed = True
-        db_table = 'texts'
-
-
 class Types(models.Model):
     typename = models.CharField(unique=True, max_length=20)
 
