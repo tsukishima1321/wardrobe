@@ -222,4 +222,4 @@ REST_FRAMEWORK = {
 IMAGE_STORAGE_PATH = 'images/'
 THUMBNAILS_STORAGE_PATH = 'thumbnails/'
 
-LOCALHOST = 'http://127.0.0.1:1096'
+LOCALHOST = os.environ['wardrobe_localhost']
