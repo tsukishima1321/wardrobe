@@ -55,15 +55,15 @@ class Statistics(models.Model):
         db_table = 'statistics'
 
 
-class StatisticsByType(models.Model):
-    typename = models.CharField(unique=True, max_length=20, primary_key=True)
+class StatisticsByKeyword(models.Model):
+    keyword = models.CharField(unique=True, max_length=50, primary_key=True)
     totalamount = models.IntegerField()
     lastyearamount = models.IntegerField()
     lastmonthamount = models.IntegerField()
 
     class Meta:
         managed = True
-        db_table = 'statistics_by_type'
+        db_table = 'statistics_by_keyword'
 
 class Types(models.Model):
     typename = models.CharField(unique=True, max_length=20)

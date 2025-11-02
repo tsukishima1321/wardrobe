@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByType, OcrMission, Keywords, Properties
+from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByKeyword, OcrMission, Keywords, Properties
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -294,10 +294,10 @@ def getStatistics(request):
     updateStatistics()
     statistics = Statistics.objects.get()
     overall = {'totalAmount': statistics.totalamount, 'lastYearAmount': statistics.lastyearamount, 'lastMonthAmount': statistics.lastmonthamount}
-    statisticsByType = StatisticsByType.objects.all()
+    statisticsByKeyword = StatisticsByKeyword.objects.all()
     typeList = []
-    for s in statisticsByType:
-        typename = Types.objects.get(typename=s.typename).typename
+    for s in statisticsByKeyword:
+        typename = s.keyword
         typeList.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
     response = {'overall': overall, 'types': typeList}
     return HttpResponse(json.dumps(response), content_type='application/json')
@@ -389,9 +389,9 @@ def renameType(request):
     type.save()
     Pictures.objects.filter(type=oldName).update(type=newName)
     type = Types.objects.get(typename=oldName)
-    statisticsByType = StatisticsByType.objects.filter(typename=oldName)
-    if statisticsByType:
-        statisticsByType.delete()
+    StatisticsByKeyword = StatisticsByKeyword.objects.filter(typename=oldName)
+    if StatisticsByKeyword:
+        StatisticsByKeyword.delete()
     type.delete()
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
@@ -414,8 +414,8 @@ def deleteType(request):
         if not altTypeObj:
             return HttpResponse('Alternative type does not exist', status=400)
         Pictures.objects.filter(type=typename).update(type=altTypeObj[0])
-        statisticsByType = StatisticsByType.objects.filter(typename=typename)
-        statisticsByType.delete()
+        StatisticsByKeyword = StatisticsByKeyword.objects.filter(typename=typename)
+        StatisticsByKeyword.delete()
         type = type[0]
         type.delete()
     else:
