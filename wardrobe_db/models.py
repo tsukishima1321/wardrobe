@@ -27,6 +27,23 @@ class PicturesOcr(models.Model):
         managed = True
         db_table = 'pictures_ocr'
 
+class Keywords(models.Model):
+    href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
+    keyword = models.CharField(max_length=50)
+
+    class Meta:
+        managed = True
+        db_table = 'keywords'
+
+class Properties(models.Model):
+    href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
+    property_name = models.CharField(max_length=50)
+    value = models.CharField(max_length=100)
+
+    class Meta:
+        managed = True
+        db_table = 'properties'
+
 
 class Statistics(models.Model):
     totalamount = models.IntegerField()
