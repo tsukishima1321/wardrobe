@@ -11,33 +11,30 @@ import logging
 
 logger = logging.getLogger('db')
 
+def _extract_body(request):
+    if request.content_type == 'application/json':
+        try:
+            return json.loads(request.body)
+        except json.JSONDecodeError:
+            return {}
+    return request.POST
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def search(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        searchKey = body.get('searchKey', '')
-        type = body.get('type', 'all')
-        byName = body.get('byName', True)
-        byFullText = body.get('byFullText', False)
-        orderBy = body.get('orderBy', 'href')
-        order = body.get('order', 'asc')
-        pageSize = body.get('pageSize', 20)
-        page = body.get('page', 1)
-        dateFrom = body.get('dateFrom', '')
-        dateTo = body.get('dateTo', '')
-    else:
-        searchKey:str = request.POST.get('searchKey', '')
-        type:str = request.POST.get('type', 'all')
-        byName:bool = request.POST.get('byName', True)
-        byFullText:bool = request.POST.get('byFullText', False)
-        orderBy:str = request.POST.get('orderBy', 'href')
-        order:str = request.POST.get('order', 'asc')
-        pageSize:int = request.POST.get('pageSize', 20)
-        page:int = request.POST.get('page', 1)
-        dateFrom:str = request.POST.get('dateFrom', '')
-        dateTo:str = request.POST.get('dateTo', '')
-    
+    body = _extract_body(request)
+    searchKey = body.get('searchKey', '')
+    type = body.get('type', 'all')
+    byName = body.get('byName', True)
+    byFullText = body.get('byFullText', False)
+    orderBy = body.get('orderBy', 'href')
+    order = body.get('order', 'asc')
+    pageSize = body.get('pageSize', 20)
+    page = body.get('page', 1)
+    dateFrom = body.get('dateFrom', '')
+    dateTo = body.get('dateTo', '')
+    keywords = body.get('keywords', [])
+    properties = body.get('properties', [])
 
     if type == 'all':
         pictures = Pictures.objects.all()
@@ -60,6 +57,12 @@ def search(request):
             pictures = pictures.filter(description__contains=k) | pictures.filter(picturesocr__ocr_result__contains=k)
     if not byName and not byFullText:
         return HttpResponse('Invalid search method', status=400)
+
+    for kw in keywords:
+        pictures = pictures.filter(keywords__keyword=kw)
+    for prop in properties:
+        pictures = pictures.filter(properties__property_name=prop['name'], properties__value=prop['value'])
+
     if dateFrom:
         pictures = pictures.filter(date__gte=dateFrom)
     if dateTo:
@@ -80,6 +83,25 @@ def search(request):
     response = {'totalPage': totalPage, 'hrefList': hrefList}
 
     return HttpResponse(json.dumps(response), content_type='application/json')
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def searchHint(request):
+    keywords = (
+        Keywords.objects.values('keyword')
+        .annotate(count=Count('keyword'))
+        .order_by('-count')[:10]
+    )
+    keywordList = [k['keyword'] for k in keywords]
+
+    properties = (
+        Properties.objects.values('property_name')
+        .annotate(count=Count('property_name'))
+        .order_by('-count')[:5]
+    )
+    propertyList = [p['property_name'] for p in properties]
+    return HttpResponse(json.dumps({'keywords': keywordList, 'properties': propertyList}), content_type='application/json')
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -173,27 +195,15 @@ def setImageText(request):
     ocr_result.save()
     return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
-def _extract_body(request):
-    if request.content_type == 'application/json':
-        try:
-            return json.loads(request.body)
-        except json.JSONDecodeError:
-            return {}
-    return request.POST
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def listKeywords(request):
     body = _extract_body(request)
     src = (body.get('src') or '').strip()
-    keyword_query = (body.get('keyword') or '').strip()
     keywords = Keywords.objects.all()
     if src:
         keywords = keywords.filter(href=src)
-    if keyword_query:
-        keywords = keywords.filter(keyword__icontains=keyword_query)
-    keywords = keywords.order_by('href__href', 'keyword')
-    data = [{'src': kw.href.href, 'keyword': kw.keyword} for kw in keywords]
+    data = [kw.keyword for kw in keywords]
     return HttpResponse(json.dumps(data), content_type='application/json')
 
 @api_view(['POST'])
@@ -230,16 +240,12 @@ def deleteKeyword(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def listProperties(request):
-    src = (request.query_params.get('src') or '').strip()
-    name_query = (request.query_params.get('name') or request.query_params.get('property_name') or '').strip()
-    query_value = (request.query_params.get('value') or '').strip()
+    body = _extract_body(request)
+    src = (body.get('src') or '').strip()
     props = Properties.objects.all()
     if src:
         props = props.filter(href=src)
-    if name_query:
-        props = props.filter(property_name__icontains=name_query,value__icontains=query_value)
-    props = props.order_by('href__href', 'property_name')
-    data = [{'src': prop.href.href, 'name': prop.property_name, 'value': prop.value} for prop in props]
+    data = [{'name': prop.property_name, 'value': prop.value} for prop in props]
     return HttpResponse(json.dumps(data), content_type='application/json')
 
 
@@ -300,9 +306,9 @@ import random as rand
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def random(request):
-    typeFilter = request.query_params.get('type', '')
-    if typeFilter:
-        pictures = Pictures.objects.filter(type=typeFilter)
+    keywordFilter = request.query_params.get('keyword', '')
+    if keywordFilter:
+        pictures = Pictures.objects.filter(keywords__keyword=keywordFilter)
     else:
         pictures = Pictures.objects.all()
     picture = rand.choice(pictures)
@@ -333,6 +339,18 @@ def newImage(request):
         else:
             ocr_result = PicturesOcr(href=Pictures.objects.get(href=src), ocr_result='')
             ocr_result.save()
+        keywords = request.POST.get('keywords', '')
+        if keywords:
+            keywordList = json.loads(keywords)
+            for kw in keywordList:
+                keyword = Keywords(href=Pictures.objects.get(href=src), keyword=kw)
+                keyword.save()
+        properties = request.POST.get('properties', '')
+        if properties:
+            propertyList = json.loads(properties)
+            for prop in propertyList:
+                property = Properties(href=Pictures.objects.get(href=src), property_name=prop['name'], value=prop['value'])
+                property.save()
         return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
     else:
         return HttpResponse(res.text, status=400)
@@ -461,6 +479,7 @@ def resetOcrMission(request):
 
 from . import ocr
 from threading import Thread
+from django.db.models import Count
 
 
 def performOcr(src:str):

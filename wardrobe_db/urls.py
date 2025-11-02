@@ -5,6 +5,7 @@ app_name = 'wardrobe_db'
 
 urlpatterns = [
     path('search/', views.search, name='search'),
+    path('searchhint/', views.searchHint, name='searchHint'),
     path('random/', views.random, name='random'),
     path('types/', views.getTypes, name='types'),
     path('image/set/', views.setImageDetail, name='setImageDetail'),
