@@ -11,7 +11,6 @@ from django.db import models
 class Pictures(models.Model):
     href = models.CharField(primary_key=True, max_length=100)
     description = models.CharField(max_length=100, db_collation='utf8mb3_general_ci', blank=True, null=True)
-    type = models.ForeignKey('Types', models.DO_NOTHING, db_column='type', to_field='typename')
     date = models.DateField(blank=True, null=True)
 
     class Meta:
@@ -64,13 +63,6 @@ class StatisticsByKeyword(models.Model):
     class Meta:
         managed = True
         db_table = 'statistics_by_keyword'
-
-class Types(models.Model):
-    typename = models.CharField(unique=True, max_length=20)
-
-    class Meta:
-        managed = True
-        db_table = 'types'
 
 class OcrMission(models.Model):
     id = models.AutoField(primary_key=True)

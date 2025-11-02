@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, Types, Statistics, StatisticsByKeyword, OcrMission, Keywords, Properties
+from wardrobe_db.models import Pictures, PicturesOcr, Statistics, StatisticsByKeyword, OcrMission, Keywords, Properties
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -101,16 +101,6 @@ def searchHint(request):
     )
     propertyList = [p['property_name'] for p in properties]
     return HttpResponse(json.dumps({'keywords': keywordList, 'properties': propertyList}), content_type='application/json')
-    
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def getTypes(request):
-    types = Types.objects.all()
-    typeList = [t.typename for t in types]
-    return HttpResponse(json.dumps(typeList), content_type='application/json')
-
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -136,20 +126,16 @@ def setImageDetail(request):
         body = json.loads(request.body)
         src = body.get('src', '')
         title = body.get('title', '')
-        type = body.get('type', '')
         date = body.get('date', '')
     else:
         src:str = request.POST.get('src', '')
         title:str = request.POST.get('title', '')
-        type:str = request.POST.get('type', '')
         date:str = request.POST.get('date', '')
     picture = Pictures.objects.get(href=src)
     if not picture:
         return HttpResponse('Invalid picture', status=400)
     if title:
         picture.description = title
-    if type:
-        picture.type = Types.objects.get(typename=type)
     if date:
         picture.date = date
     picture.save()
@@ -330,7 +316,7 @@ def newImage(request):
         date:str = request.POST.get('date', '')
         if not title or not type or not date:
             return HttpResponse('Invalid parameters', status=400)
-        picture = Pictures(href=src, description=title, type=Types.objects.get(typename=type), date=date)
+        picture = Pictures(href=src, description=title, date=date)
         picture.save()
         doOCR = request.POST.get('doOCR', False)
         if doOCR and doOCR != 'false' and doOCR != 'False':
@@ -354,73 +340,6 @@ def newImage(request):
         return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
     else:
         return HttpResponse(res.text, status=400)
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def newType(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        typename:str = body.get('typename', '')
-    else:
-        typename:str = request.POST.get('typename', '')
-    exist = Types.objects.filter(typename=typename)
-    if exist:
-        return HttpResponse('Type already exists', status=400)
-    type = Types(typename=typename)
-    type.save()
-    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def renameType(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        oldName:str = body.get('oldName', '')
-        newName:str = body.get('newName', '')
-    else:
-        oldName:str = request.POST.get('oldName', '')
-        newName:str = request.POST.get('newName', '')
-    type = Types.objects.filter(typename=oldName)
-    if not type:
-        return HttpResponse('Type does not exist', status=400)
-    if Types.objects.filter(typename=newName):
-        return HttpResponse('New type name already exists', status=400)
-    type = Types(typename=newName)
-    type.save()
-    Pictures.objects.filter(type=oldName).update(type=newName)
-    type = Types.objects.get(typename=oldName)
-    StatisticsByKeyword = StatisticsByKeyword.objects.filter(typename=oldName)
-    if StatisticsByKeyword:
-        StatisticsByKeyword.delete()
-    type.delete()
-    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def deleteType(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        typename:str = body.get('typename', '')
-        altType = body.get('altType', '')
-    else:
-        typename:str = request.POST.get('typename', '')
-        altType = request.POST.get('altType', '')
-    type = Types.objects.filter(typename=typename)
-    if not type:
-        return HttpResponse('Type does not exist', status=400)
-    
-    if altType:
-        altTypeObj = Types.objects.filter(typename=altType)
-        if not altTypeObj:
-            return HttpResponse('Alternative type does not exist', status=400)
-        Pictures.objects.filter(type=typename).update(type=altTypeObj[0])
-        StatisticsByKeyword = StatisticsByKeyword.objects.filter(typename=typename)
-        StatisticsByKeyword.delete()
-        type = type[0]
-        type.delete()
-    else:
-        return HttpResponse('Alternative type is required', status=400)
-    return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
