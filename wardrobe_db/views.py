@@ -116,7 +116,7 @@ def getImageDetail(request):
         ocr_result = ocr_result[0].ocr_result
     else:
         ocr_result = ''
-    response = {'src': picture.href, 'title': picture.description, 'type': picture.type.typename, 'date': picture.date.strftime('%Y-%m-%d'), 'text': ocr_result}
+    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d'), 'text': ocr_result}
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 @api_view(['POST'])
@@ -312,9 +312,8 @@ def newImage(request):
         data = json.loads(res.text)
         src = data['name']
         title:str = request.POST.get('title', '')
-        type:str = request.POST.get('type', '')
         date:str = request.POST.get('date', '')
-        if not title or not type or not date:
+        if not title or not date:
             return HttpResponse('Invalid parameters', status=400)
         picture = Pictures(href=src, description=title, date=date)
         picture.save()
