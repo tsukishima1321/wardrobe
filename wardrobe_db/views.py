@@ -35,6 +35,8 @@ def search(request):
     dateTo = body.get('dateTo', '')
     keywords = body.get('keywords', [])
     properties = body.get('properties', [])
+    excludedKeywords = body.get('excludedKeywords', [])
+    excludedProperties = body.get('excludedProperties', [])
 
     if type == 'all':
         pictures = Pictures.objects.all()
@@ -62,6 +64,11 @@ def search(request):
         pictures = pictures.filter(keywords__keyword=kw)
     for prop in properties:
         pictures = pictures.filter(properties__property_name=prop['name'], properties__value=prop['value'])
+
+    for kw in excludedKeywords:
+        pictures = pictures.exclude(keywords__keyword=kw)
+    for prop in excludedProperties:
+        pictures = pictures.exclude(properties__property_name=prop['name'], properties__value=prop['value'])
 
     if dateFrom:
         pictures = pictures.filter(date__gte=dateFrom)
