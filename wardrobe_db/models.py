@@ -72,3 +72,12 @@ class OcrMission(models.Model):
     class Meta:
         managed = True
         db_table = 'ocr_mission'
+
+class SavedSearch(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100)
+    searchparams = models.TextField()
+
+    class Meta:
+        managed = True
+        db_table = 'saved_search_filter'

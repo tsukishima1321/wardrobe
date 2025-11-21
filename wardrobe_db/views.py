@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, Statistics, StatisticsByKeyword, OcrMission, Keywords, Properties
+from wardrobe_db.models import Pictures, PicturesOcr, Statistics, StatisticsByKeyword, OcrMission, Keywords, Properties, SavedSearch
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -80,6 +80,7 @@ def search(request):
         pictures = pictures.order_by('-' + orderBy, 'href')
 
     totalPage = len(pictures) // pageSize + 1
+    total = len(pictures)
     if page > totalPage:
         return HttpResponse('Invalid page number', status=400)
     pictures = pictures[(page - 1) * pageSize:page * pageSize]
@@ -87,7 +88,7 @@ def search(request):
     hrefList = []
     for picture in pictures:
         hrefList.append({'src': picture.href, 'title': picture.description,'date':picture.date.strftime('%Y-%m-%d')})
-    response = {'totalPage': totalPage, 'hrefList': hrefList}
+    response = {'total':total,'totalPage': totalPage, 'hrefList': hrefList}
 
     return HttpResponse(json.dumps(response), content_type='application/json')
 
@@ -457,4 +458,49 @@ def excuteAllOcrMission(request):
 
     Thread(target=performAllOcr).start()
 
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def saveSearchFilter(request):
+    body = _extract_body(request)
+    name = (body.get('name') or '').strip()
+    searchparams = body.get('searchparams', {})
+    if not name or not searchparams:
+        return HttpResponse('Missing name or searchparams', status=400)
+    searchparams_json = json.dumps(searchparams)
+    saved_search = SavedSearch(name=name, searchparams=searchparams_json)
+    saved_search.save()
+    return HttpResponse(json.dumps({'id': saved_search.id}), content_type='application/json')
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listSavedSearchFilters(request):
+    saved_searches = SavedSearch.objects.all()
+    data = [{'id': s.id, 'name': s.name} for s in saved_searches]
+    return HttpResponse(json.dumps(data), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def getSavedSearchFilter(request):
+    body = _extract_body(request)
+    search_id = body.get('id', None)
+    if search_id is None:
+        return HttpResponse('Missing id', status=400)
+    saved_search = SavedSearch.objects.filter(id=search_id).first()
+    if not saved_search:
+        return HttpResponse('Saved search not found', status=404)
+    data = saved_search.searchparams
+    return HttpResponse(json.dumps(data), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def deleteSavedSearch(request):
+    body = _extract_body(request)
+    search_id = body.get('id', None)
+    if search_id is None:
+        return HttpResponse('Missing id', status=400)
+    deleted_count, _ = SavedSearch.objects.filter(id=search_id).delete()
+    if not deleted_count:
+        return HttpResponse('Saved search not found', status=404)
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')

@@ -24,4 +24,8 @@ urlpatterns = [
     path('ocrmission/reset/', views.resetOcrMission, name='resetOcrMission'),
     path('ocrmission/execute/', views.excuteOcrMission, name='excuteOcrMission'),
     path('ocrmission/executeall/', views.excuteAllOcrMission, name='excuteAllOcrMission'),
+    path('savedsearch/create/', views.saveSearchFilter, name='createSavedSearch'),
+    path('savedsearch/list/', views.listSavedSearchFilters, name='listSavedSearch'),
+    path('savedsearch/delete/', views.deleteSavedSearch, name='deleteSavedSearch'),
+    path('savedsearch/get/', views.getSavedSearchFilter, name='getSavedSearch'),
 ]
