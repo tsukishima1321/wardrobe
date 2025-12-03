@@ -62,6 +62,7 @@ def search(request):
         
         # Pagination
         totalPage = (len(texts) + pageSize - 1) // pageSize
+        totalItems = len(texts)
         if page > totalPage and totalPage > 0:
             return HttpResponse('Invalid page number', status=400)
         
@@ -76,7 +77,7 @@ def search(request):
                 'text': text.text
             })
         
-        results = {'totalPage': totalPage, 'textList': textList}
+        results = {'totalPage': totalPage, 'textList': textList, 'totalItems': totalItems}
         
         return HttpResponse(json.dumps(results), content_type='application/json')
     
