@@ -11,7 +11,6 @@ from .common import _extract_body
 def search(request):
     body = _extract_body(request)
     searchKey = body.get('searchKey', '')
-    type = body.get('type', 'all')
     byName = body.get('byName', True)
     byFullText = body.get('byFullText', False)
     orderBy = body.get('orderBy', 'href')
@@ -24,18 +23,13 @@ def search(request):
     properties = body.get('properties', [])
     excludedKeywords = body.get('excludedKeywords', [])
     excludedProperties = body.get('excludedProperties', [])
+    propertiesPrecise = body.get('propertiesPrecise', False)
 
-    if type == 'all':
-        pictures = Pictures.objects.all()
-    else:
-        types = type.split('^')
-        pictures = Pictures.objects.none()
-        for t in types:
-            pictures = Pictures.objects.filter(type=t) | pictures
+    pictures = Pictures.objects.all()
     if byName and not byFullText:
         keys = searchKey.split(' ')
         for k in keys:
-            pictures = pictures.filter(description__contains=k)
+            pictures = pictures.filter(description__contains=k) | pictures.filter(keywords__keyword=k)
     if byFullText and not byName:
         keys = searchKey.split(' ')
         for k in keys:
@@ -50,12 +44,18 @@ def search(request):
     for kw in keywords:
         pictures = pictures.filter(keywords__keyword=kw)
     for prop in properties:
-        pictures = pictures.filter(properties__property_name=prop['name'], properties__value=prop['value'])
+        if propertiesPrecise:
+            pictures = pictures.filter(properties__property_name=prop['name'], properties__value=prop['value'])
+        else:
+            pictures = pictures.filter(properties__property_name=prop['name'], properties__value__contains=prop['value'])
 
     for kw in excludedKeywords:
         pictures = pictures.exclude(keywords__keyword=kw)
     for prop in excludedProperties:
-        pictures = pictures.exclude(properties__property_name=prop['name'], properties__value=prop['value'])
+        if propertiesPrecise:
+            pictures = pictures.exclude(properties__property_name=prop['name'], properties__value=prop['value'])
+        else:
+            pictures = pictures.exclude(properties__property_name=prop['name'], properties__value__contains=prop['value'])
 
     if dateFrom:
         pictures = pictures.filter(date__gte=dateFrom)
@@ -70,6 +70,7 @@ def search(request):
     total = len(pictures)
     if page > totalPage:
         return HttpResponse('Invalid page number', status=400)
+    pictures = pictures.distinct()
     pictures = pictures[(page - 1) * pageSize:page * pageSize]
     #hrefList = [{'src' = picture.href,'title' = picture.description} for picture in pictures]
     hrefList = []
