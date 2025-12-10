@@ -66,11 +66,13 @@ def search(request):
     else:
         pictures = pictures.order_by('-' + orderBy, 'href')
 
+    
+    pictures = pictures.distinct()
     totalPage = len(pictures) // pageSize + 1
     total = len(pictures)
     if page > totalPage:
         return HttpResponse('Invalid page number', status=400)
-    pictures = pictures.distinct()
+    
     pictures = pictures[(page - 1) * pageSize:page * pageSize]
     #hrefList = [{'src' = picture.href,'title' = picture.description} for picture in pictures]
     hrefList = []
