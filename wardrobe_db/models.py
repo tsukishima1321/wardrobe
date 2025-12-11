@@ -81,3 +81,11 @@ class SavedSearch(models.Model):
     class Meta:
         managed = True
         db_table = 'saved_search_filter'
+
+class BackupRecords(models.Model):
+    timestamp = models.CharField(primary_key=True)
+    comment = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'backup_records'

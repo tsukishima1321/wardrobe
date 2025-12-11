@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import image_views, search_views, metadata_views, ocr_views, stat_views
+from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views
 
 app_name = 'wardrobe_db'
 
@@ -28,4 +28,8 @@ urlpatterns = [
     path('savedsearch/list/', search_views.listSavedSearchFilters, name='listSavedSearch'),
     path('savedsearch/delete/', search_views.deleteSavedSearch, name='deleteSavedSearch'),
     path('savedsearch/get/', search_views.getSavedSearchFilter, name='getSavedSearch'),
+    path('backup/list/', backup_views.list_backups, name='listBackups'),
+    path('backup/create/', backup_views.create_backup, name='createBackup'),
+    path('backup/download/', backup_views.download_backup, name='downloadBackup'),
+    path('backup/delete/', backup_views.delete_backup, name='deleteBackup'),
 ]

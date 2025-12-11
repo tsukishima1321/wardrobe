@@ -224,3 +224,6 @@ IMAGE_STORAGE_PATH = 'images/'
 THUMBNAILS_STORAGE_PATH = 'thumbnails/'
 
 LOCALHOST = os.environ['wardrobe_localhost']
+
+BACKUP_PATH = os.environ['backupdir']
+BACKUP_SCRIPT_PATH = os.path.join(BASE_DIR, 'db_dump.sh')

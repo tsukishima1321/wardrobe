@@ -30,6 +30,7 @@ BEGIN
     SET totalamount = (SELECT COUNT(*) FROM pictures),
         lastyearamount = (SELECT COUNT(*) FROM pictures WHERE EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)),
         lastmonthamount = (SELECT COUNT(*) FROM pictures WHERE EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE) AND EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE));
+    delete from statistics_by_keyword where keyword not in (SELECT DISTINCT keyword FROM keywords);
 END;
 $function$
 ;
