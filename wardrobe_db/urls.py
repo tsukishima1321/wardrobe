@@ -18,6 +18,7 @@ urlpatterns = [
     path('property/create/', metadata_views.createProperty, name='createProperty'),
     path('property/delete/', metadata_views.deleteProperty, name='deleteProperty'),
     path('statistics/', stat_views.getStatistics, name='getStatistics'),
+    path('generatetips/', stat_views.generateTips, name='generateTips'),
     path('image/new/', image_views.newImage, name='newImage'),
     path('ocrmission/get/', ocr_views.getOcrMission, name='getOcrMission'),
     path('ocrmission/new/', ocr_views.newOcrMission, name='newOcrMission'),
