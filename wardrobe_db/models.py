@@ -96,6 +96,8 @@ class Messages(models.Model):
     text = models.TextField()
     level = models.CharField(max_length=20)
     timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='unread')
+    link = models.CharField(max_length=200, blank=True, null=True)
 
     class Meta:
         managed = True

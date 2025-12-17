@@ -10,6 +10,7 @@ import json
 import time
 from .common import _extract_body
 
+# 不使用DRF的视图集和鉴权，因为需要支持SSE和异步处理
 async def streamMessages(request):
     if request.method != 'GET':
         return HttpResponse(status=405)
@@ -39,7 +40,9 @@ async def streamMessages(request):
                     'level': msg.level,
                     'type': msg.message_type,
                     'text': msg.text,
-                    'id': msg.id
+                    'id': msg.id,
+                    'status': msg.status,
+                    'link': msg.link
                 })
                 yield f"data: {data}\n\n"
                 last_id = msg.id
@@ -63,8 +66,8 @@ async def streamMessages(request):
 def listMessages(request):
     body = _extract_body(request)
     messages = Messages.objects.all()
-    messages = messages.all()
-    data = [{'timestamp': msg.timestamp.isoformat(), 'level': msg.level, 'type': msg.message_type, 'text': msg.text, 'id': msg.id} for msg in messages]
+    messages = messages.all().order_by('-timestamp')[:100]
+    data = [{'timestamp': msg.timestamp.isoformat(), 'level': msg.level, 'type': msg.message_type, 'text': msg.text, 'id': msg.id, 'status': msg.status, 'link': msg.link} for msg in messages]
     return HttpResponse(json.dumps(data), content_type='application/json')
 
 @api_view(['POST'])
@@ -77,4 +80,26 @@ def deleteMessage(request):
     deleted_count, _ = Messages.objects.filter(id=msg_id).delete()
     if not deleted_count:
         return HttpResponse('Message does not exist', status=404)
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def readMessage(request):
+    body = _extract_body(request)
+    msg_id = body.get('id')
+    if not msg_id:
+        return HttpResponse('Missing message id', status=400)
+    try:
+        msg = Messages.objects.get(id=msg_id)
+        msg.status = 'read'
+        msg.save()
+    except Messages.DoesNotExist:
+        return HttpResponse('Message does not exist', status=404)
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def clearMessage(request):
+    body = _extract_body(request)
+    Messages.objects.filter(status='read').delete()
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')

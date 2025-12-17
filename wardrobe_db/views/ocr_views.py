@@ -6,7 +6,7 @@ import json
 from django.conf import settings
 from wardrobe_db import ocr
 from threading import Thread
-from .common import logger
+from .common import logger, create_message
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -72,7 +72,8 @@ def performOcr(src:str):
     mission.status = 'finished'
     mission.save()
     title = Pictures.objects.get(href=src).description
-    Messages.objects.create(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.')
+    # Messages.objects.create(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.', link='/detail/' + src)
+    create_message(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.', link='/detail/' + src)
 
 def performAllOcr():
     missions = OcrMission.objects.filter(status='waiting')

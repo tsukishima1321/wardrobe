@@ -34,5 +34,7 @@ urlpatterns = [
     path('backup/delete/', backup_views.delete_backup, name='deleteBackup'),
     path('message/list/', message_views.listMessages, name='listMessages'),
     path('message/delete/', message_views.deleteMessage, name='deleteMessage'),
+    path('message/read/', message_views.readMessage, name='readMessage'),
+    path('message/clear_read/', message_views.clearMessage, name='clear_read'),
     path('message/stream/', message_views.streamMessages, name='streamMessages'),
 ]

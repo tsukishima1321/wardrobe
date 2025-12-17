@@ -1,6 +1,7 @@
 import json
 import logging
 from django.conf import settings
+from wardrobe_db.models import Messages
 
 logger = logging.getLogger('db')
 LOCALHOST = settings.LOCALHOST
@@ -12,3 +13,9 @@ def _extract_body(request):
         except json.JSONDecodeError:
             return {}
     return request.POST
+
+def create_message(level, message_type, text, status='unread', link=''):
+    msg = Messages(level=level, message_type=message_type, text=text, status=status, link=link)
+    msg.save()
+    logger.info(f'Created message: {text} with level: {level}, type: {message_type}, status: {status}, link: {link}')
+    return msg
