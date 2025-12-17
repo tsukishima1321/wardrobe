@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views
+from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views, diary_views
 
 app_name = 'wardrobe_db'
 
@@ -37,4 +37,9 @@ urlpatterns = [
     path('message/read/', message_views.readMessage, name='readMessage'),
     path('message/clear_read/', message_views.clearMessage, name='clear_read'),
     path('message/stream/', message_views.streamMessages, name='streamMessages'),
+    path('diary/search/', diary_views.search, name='search'),
+    path('diary/get/',diary_views.getDiaryTexts, name='getDiaryTexts'),
+    path('diary/new/', diary_views.newDiaryText, name='newDiaryText'),
+    path('diary/delete/', diary_views.deleteDiaryText, name='deleteDiaryText'),
+    path('diary/edit/', diary_views.editDiaryText, name='editDiaryText'),
 ]

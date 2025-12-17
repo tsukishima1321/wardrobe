@@ -4,17 +4,22 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
 from django.db import connections
+from django.db.models import Max
+from .common import create_message
 
 def updateStatistics():
     connection = connections['business']
     with connection.cursor() as cursor:
         cursor.callproc('updatestat')
-        return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+
+def generateTips():
+    pass
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def getStatistics(request):
     updateStatistics()
+    generateTips()
     statistics = Statistics.objects.get()
     overall = {'totalAmount': statistics.totalamount, 'lastYearAmount': statistics.lastyearamount, 'lastMonthAmount': statistics.lastmonthamount}
     statisticsByKeyword = StatisticsByKeyword.objects.all()

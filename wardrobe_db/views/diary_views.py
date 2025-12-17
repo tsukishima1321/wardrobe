@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_diary.models import Texts
+from wardrobe_db.models import DiaryTexts
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -40,7 +40,7 @@ def search(request):
         logger.info(f"Search parameters: searchKey={searchKey}, dateFrom={dateFrom}, dateTo={dateTo}")
         
         # Start with all diary texts
-        texts = Texts.objects.all()
+        texts = DiaryTexts.objects.all()
         
         # Filter by search key if provided
         if searchKey:
@@ -102,7 +102,7 @@ def getDiaryTexts(request):
         if text_id:
             try:
                 text_id = int(text_id)
-                diary_text = Texts.objects.get(id=text_id)
+                diary_text = DiaryTexts.objects.get(id=text_id)
                 result = {
                     'id': diary_text.id,
                     'date': diary_text.date.strftime('%Y-%m-%d'),
@@ -111,11 +111,11 @@ def getDiaryTexts(request):
                 return HttpResponse(json.dumps(result), content_type='application/json')
             except ValueError:
                 return HttpResponse('Invalid ID format', status=400)
-            except Texts.DoesNotExist:
+            except DiaryTexts.DoesNotExist:
                 return HttpResponse('Diary text not found', status=404)
         else:
             # If no ID, return all diary texts
-            texts = Texts.objects.all()
+            texts = DiaryTexts.objects.all()
             textList = []
             for text in texts:
                 textList.append({
@@ -153,7 +153,7 @@ def newDiaryText(request):
             return HttpResponse('Invalid date format. Use YYYY-MM-DD', status=400)
         
         # Create new diary text
-        diary_text = Texts(date=date, text=text)
+        diary_text = DiaryTexts(date=date, text=text)
         diary_text.save()
         
         logger.info(f"New diary text created for date: {date}")
@@ -186,7 +186,7 @@ def deleteDiaryText(request):
             return HttpResponse('Invalid ID format', status=400)
         
         # Find and delete the diary text
-        diary_text = Texts.objects.filter(id=text_id)
+        diary_text = DiaryTexts.objects.filter(id=text_id)
         if not diary_text:
             return HttpResponse('Diary text not found', status=404)
         
@@ -227,8 +227,8 @@ def editDiaryText(request):
         
         # Find the diary text
         try:
-            diary_text = Texts.objects.get(id=text_id)
-        except Texts.DoesNotExist:
+            diary_text = DiaryTexts.objects.get(id=text_id)
+        except DiaryTexts.DoesNotExist:
             return HttpResponse('Diary text not found', status=404)
         
         # Update fields if provided

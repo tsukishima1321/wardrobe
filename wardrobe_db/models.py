@@ -102,3 +102,11 @@ class Messages(models.Model):
     class Meta:
         managed = True
         db_table = 'messages'
+
+class DiaryTexts(models.Model):
+    date = models.DateField()
+    text = models.TextField()
+
+    class Meta:
+        managed = True
+        db_table = 'diary_texts'

@@ -110,7 +110,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'wardrobe_image',
     'wardrobe_db',
-    'wardrobe_diary',
 ]
 
 MIDDLEWARE = [
@@ -152,14 +151,6 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': 'db.sqlite3',
     },
-    #'business':{
-    #    'ENGINE':'django.db.backends.mysql',
-    #    'NAME':os.environ['closet_db_name'],
-    #    'HOST':'127.0.0.1',
-    #    'PORT':3306,
-    #    'USER':os.environ['closet_db_user_name'],
-    #    'PASSWORD':os.environ['closet_db_password'],
-    #},
     'business':{
         'ENGINE':'django.db.backends.postgresql',
         'NAME':'wardrobe',
