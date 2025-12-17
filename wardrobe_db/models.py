@@ -89,3 +89,14 @@ class BackupRecords(models.Model):
     class Meta:
         managed = True
         db_table = 'backup_records'
+
+class Messages(models.Model):
+    id = models.AutoField(primary_key=True)
+    message_type = models.CharField(max_length=50)
+    text = models.TextField()
+    level = models.CharField(max_length=20)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'messages'

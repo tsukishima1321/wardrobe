@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, OcrMission
+from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Messages
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -71,6 +71,8 @@ def performOcr(src:str):
     
     mission.status = 'finished'
     mission.save()
+    title = Pictures.objects.get(href=src).description
+    Messages.objects.create(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.')
 
 def performAllOcr():
     missions = OcrMission.objects.filter(status='waiting')
