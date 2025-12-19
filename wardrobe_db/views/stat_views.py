@@ -107,6 +107,7 @@ def generateTips(request):
             level='tips',
             message_type='Report',
             text=report_text,
+            link='/search?dateFrom={}-{:02d}-01&dateTo={}-{:02d}-{}'.format(year, month, year, month, last_day_of_previous_month.day)
             )
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
 

@@ -157,7 +157,7 @@ DATABASES = {
         'HOST':'127.0.0.1',
         'PORT':5432,
         'USER':'postgres',
-        'PASSWORD':os.environ['closet_db_password'],
+        'PASSWORD':os.environ['wardrobe_db_password'],
     }
 }
 
@@ -216,5 +216,5 @@ THUMBNAILS_STORAGE_PATH = 'thumbnails/'
 
 LOCALHOST = os.environ['wardrobe_localhost']
 
-BACKUP_PATH = os.environ['backupdir']
+BACKUP_PATH = os.environ['wardrobe_backupdir']
 BACKUP_SCRIPT_PATH = os.path.join(BASE_DIR, 'db_dump.sh')

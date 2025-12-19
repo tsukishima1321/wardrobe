@@ -1,9 +1,11 @@
-#!/bin/sh
+#!/bin/bash
+
+echo ----------------------------
 
 source /etc/profile
 source ~/.bashrc
 
-dbname=$wardrobe_db_name
+dbname=wardrobe
 
 time=$(date "+%Y%m%d%H%M%S")
 
@@ -21,5 +23,8 @@ rm $temp_dir/key.bin
 tar -czf $wardrobe_backupdir/backups/$time.tar.gz -C $temp_dir all.sql.enc key.bin.enc
 
 rm -rf $temp_dir
+
+psql -d $dbname -c "INSERT INTO backup_records (timestamp, comment) VALUES ('$time', '自动备份');"
+
 
 echo $time
