@@ -2,10 +2,12 @@
 
 Wardrobe is a Django-based project that serves as an image bed and database application. It uses Nginx for serving static files and handling SSL, and PostgreSQL for data storage.
 
+See repo [here](https://github.com/tsukishima1321/wardrobe-vue) for the frontend part.
+
 ## Prerequisites
 
 - Python 3.x
-- PostgreSQL
+- PostgreSQLs
 - Nginx
 - OpenSSL (for backups)
 
@@ -141,6 +143,7 @@ The project includes scripts for encrypted database backups: `db_dump.sh` and `a
 
 4. **Auto Backup Setup:**
    You can set up a cron job to run `auto_db_dump.sh` at desired intervals for automated backups.
+   You must grant SELECT privileges on all tables and sequences to the user running the backup script.
 
 ## API Endpoints Under Recommended Nginx Configuration
 
