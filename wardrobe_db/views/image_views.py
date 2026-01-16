@@ -6,16 +6,13 @@ import json
 import requests
 import random as rand
 from django.conf import settings
-from .common import LOCALHOST
+from .common import LOCALHOST, _extract_body
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def getImageDetail(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-    else:
-        src:str = request.POST.get('src', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
     picture = Pictures.objects.get(href=src)
     ocr_result = PicturesOcr.objects.filter(href=src)
     if ocr_result:
@@ -28,15 +25,10 @@ def getImageDetail(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def setImageDetail(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-        title = body.get('title', '')
-        date = body.get('date', '')
-    else:
-        src:str = request.POST.get('src', '')
-        title:str = request.POST.get('title', '')
-        date:str = request.POST.get('date', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
+    title = body.get('title', '')
+    date = body.get('date', '')
     picture = Pictures.objects.get(href=src)
     if not picture:
         return HttpResponse('Invalid picture', status=400)
@@ -50,11 +42,8 @@ def setImageDetail(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def deleteImage(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-    else:
-        src:str = request.POST.get('src', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
     picture = Pictures.objects.filter(href=src)
     if not picture:
         return HttpResponse('Invalid picture', status=400)
@@ -72,13 +61,9 @@ def deleteImage(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def setImageText(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-        text = body.get('text', '')
-    else:
-        src:str = request.POST.get('src', '')
-        text:str = request.POST.get('text', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
+    text = body.get('text', '')
     ocr_result = PicturesOcr.objects.get(href=src)
     if ocr_result:
         ocr_result.ocr_result = text
@@ -110,8 +95,13 @@ def newImage(request):
         src = data['name']
         title:str = request.POST.get('title', '')
         date:str = request.POST.get('date', '')
-        if not title or not date:
-            picture = Pictures(href=src)
+        unprocessed:str = request.POST.get('unprocessed', 'false')
+        if not title or not date or unprocessed.lower() == 'true':
+            if not title:
+                title = ''
+            if not date:
+                date = None
+            picture = Pictures(href=src, description=title, date=date)
             picture.save()
             flag = BlankPictures(href=src)
             flag.save()
@@ -146,4 +136,17 @@ def newImage(request):
 def listBlankImages(request):
     blanks = BlankPictures.objects.all()
     blank_list = [blank.href for blank in blanks]
-    return HttpResponse(json.dumps({'blanks': blank_list}), content_type='application/json')
+    return HttpResponse(json.dumps(blank_list), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reprocessImage(request):
+    body = _extract_body(request)
+    src = (body.get('src') or '').strip()
+    if not src:
+        return HttpResponse('Missing src', status=400)
+    picture = BlankPictures.objects.filter(href=src).first()
+    if not picture:
+        return HttpResponse('Picture is not marked as blank', status=404)
+    picture.delete()
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')

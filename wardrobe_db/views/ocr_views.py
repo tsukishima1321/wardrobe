@@ -6,7 +6,7 @@ import json
 from django.conf import settings
 from wardrobe_db import ocr
 from threading import Thread
-from .common import logger, create_message
+from .common import logger, create_message, _extract_body
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -18,11 +18,8 @@ def getOcrMission(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def newOcrMission(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-    else:
-        src:str = request.POST.get('src', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
     
     if not Pictures.objects.filter(href=src):
         return HttpResponse('Picture does not exist', status=400)
@@ -46,11 +43,8 @@ def newOcrMission(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def resetOcrMission(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-    else:
-        src:str = request.POST.get('src', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
     
     mission = OcrMission.objects.filter(href=Pictures.objects.get(href=src))
     if not mission:
@@ -95,11 +89,8 @@ def performAllOcr():
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def excuteOcrMission(request):
-    if(request.content_type == 'application/json'):
-        body = json.loads(request.body)
-        src = body.get('src', '')
-    else:
-        src:str = request.POST.get('src', '')
+    body = _extract_body(request)
+    src = body.get('src', '')
     
     mission = OcrMission.objects.filter(href=Pictures.objects.get(href=src))
     if not mission:

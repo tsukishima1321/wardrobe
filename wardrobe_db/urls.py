@@ -21,6 +21,7 @@ urlpatterns = [
     path('generatetips/', stat_views.generateTips, name='generateTips'),
     path('image/new/', image_views.newImage, name='newImage'),
     path('image/listblanks/', image_views.listBlankImages, name='listBlankImages'),
+    path('image/reprocess/', image_views.reprocessImage, name='reprocessImage'),
     path('ocrmission/get/', ocr_views.getOcrMission, name='getOcrMission'),
     path('ocrmission/new/', ocr_views.newOcrMission, name='newOcrMission'),
     path('ocrmission/reset/', ocr_views.resetOcrMission, name='resetOcrMission'),

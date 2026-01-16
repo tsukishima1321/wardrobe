@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 
 from django.conf import settings
+from .common import _extract_body
 LOCALHOST = settings.LOCALHOST
 
 import logging
@@ -19,23 +20,14 @@ def search(request):
     Search for diary texts based on the provided parameters.
     """
     try:
-        if(request.content_type == 'application/json'):
-            body = json.loads(request.body)
-            searchKey = body.get('searchKey', '')
-            dateFrom = body.get('dateFrom', '')
-            dateTo = body.get('dateTo', '')
-            orderBy = body.get('orderBy', 'date')
-            order = body.get('order', 'desc')
-            pageSize = body.get('pageSize', 20)
-            page = body.get('page', 1)
-        else:
-            searchKey = request.POST.get('searchKey', '')
-            dateFrom = request.POST.get('dateFrom', '')
-            dateTo = request.POST.get('dateTo', '')
-            orderBy = request.POST.get('orderBy', 'date')
-            order = request.POST.get('order', 'desc')
-            pageSize = int(request.POST.get('pageSize', 20))
-            page = int(request.POST.get('page', 1))
+        body = _extract_body(request)
+        searchKey = body.get('searchKey', '')
+        dateFrom = body.get('dateFrom', '')
+        dateTo = body.get('dateTo', '')
+        orderBy = body.get('orderBy', 'date')
+        order = body.get('order', 'desc')
+        pageSize = int(body.get('pageSize', 20))
+        page = int(body.get('page', 1))
         
         logger.info(f"Search parameters: searchKey={searchKey}, dateFrom={dateFrom}, dateTo={dateTo}")
         
@@ -92,11 +84,8 @@ def getDiaryTexts(request):
     Get diary texts. If ID is provided, return specific diary text. Otherwise, return all with optional filtering.
     """
     try:
-        if request.content_type == 'application/json':
-            body = json.loads(request.body)
-            text_id = body.get('id', '')
-        else:
-            text_id = request.GET.get('id', '')
+        body = _extract_body(request)
+        text_id = body.get('id', '')
         
         # If ID is provided, return specific diary text
         if text_id:
@@ -135,13 +124,9 @@ def newDiaryText(request):
     Create a new diary text entry.
     """
     try:
-        if(request.content_type == 'application/json'):
-            body = json.loads(request.body)
-            date = body.get('date', '')
-            text = body.get('text', '')
-        else:
-            date = request.POST.get('date', '')
-            text = request.POST.get('text', '')
+        body = _extract_body(request)
+        date = body.get('date', '')
+        text = body.get('text', '')
         
         if not date or not text:
             return HttpResponse('Date and text are required', status=400)
@@ -171,11 +156,8 @@ def deleteDiaryText(request):
     Delete a diary text entry.
     """
     try:
-        if(request.content_type == 'application/json'):
-            body = json.loads(request.body)
-            text_id = body.get('id', '')
-        else:
-            text_id = request.POST.get('id', '')
+        body = _extract_body(request)
+        text_id = body.get('id', '')
         
         if not text_id:
             return HttpResponse('ID is required', status=400)
@@ -207,15 +189,10 @@ def editDiaryText(request):
     Edit an existing diary text entry.
     """
     try:
-        if(request.content_type == 'application/json'):
-            body = json.loads(request.body)
-            text_id = body.get('id', '')
-            date = body.get('date', '')
-            text = body.get('text', '')
-        else:
-            text_id = request.POST.get('id', '')
-            date = request.POST.get('date', '')
-            text = request.POST.get('text', '')
+        body = _extract_body(request)
+        text_id = body.get('id', '')
+        date = body.get('date', '')
+        text = body.get('text', '')
         
         if not text_id:
             return HttpResponse('ID is required', status=400)
