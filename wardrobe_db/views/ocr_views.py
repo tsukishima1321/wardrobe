@@ -63,6 +63,15 @@ def resetOcrMission(request):
     
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cleanOcrMission(request):
+    missions = OcrMission.objects.filter(status='finished')
+    count = missions.count()
+    for mission in missions:
+        mission.delete()
+    return HttpResponse(json.dumps({'status': 'Success', 'deleted_count': count}), content_type='application/json')
+
 def performOcr(src:str):
     mission = OcrMission.objects.filter(href=Pictures.objects.get(href=src))[0]
 

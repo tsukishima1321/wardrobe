@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Keywords, Properties
+from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Keywords, Properties, BlankPictures
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -22,7 +22,7 @@ def getImageDetail(request):
         ocr_result = ocr_result[0].ocr_result
     else:
         ocr_result = ''
-    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d'), 'text': ocr_result}
+    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result}
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 @api_view(['POST'])
@@ -111,7 +111,11 @@ def newImage(request):
         title:str = request.POST.get('title', '')
         date:str = request.POST.get('date', '')
         if not title or not date:
-            return HttpResponse('Invalid parameters', status=400)
+            picture = Pictures(href=src)
+            picture.save()
+            flag = BlankPictures(href=src)
+            flag.save()
+            return HttpResponse(json.dumps({'status':'Success','md5':src}), content_type='application/json')
         picture = Pictures(href=src, description=title, date=date)
         picture.save()
         doOCR = request.POST.get('doOCR', False)
@@ -133,6 +137,13 @@ def newImage(request):
             for prop in propertyList:
                 property = Properties(href=Pictures.objects.get(href=src), property_name=prop['name'], value=prop['value'])
                 property.save()
-        return HttpResponse(json.dumps({'status':'Success'}), content_type='application/json')
+        return HttpResponse(json.dumps({'status':'Success','md5':src}), content_type='application/json')
     else:
         return HttpResponse(res.text, status=400)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def listBlankImages(request):
+    blanks = BlankPictures.objects.all()
+    blank_list = [blank.href for blank in blanks]
+    return HttpResponse(json.dumps({'blanks': blank_list}), content_type='application/json')

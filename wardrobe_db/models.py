@@ -110,3 +110,10 @@ class DiaryTexts(models.Model):
     class Meta:
         managed = True
         db_table = 'diary_texts'
+
+class BlankPictures(models.Model):
+    href = models.CharField(primary_key=True, max_length=100)
+
+    class Meta:
+        managed = True
+        db_table = 'blank_pictures'
