@@ -92,7 +92,7 @@ def newImage(request):
     res = requests.post(url, files=request.FILES, headers=headers)
     if res.status_code == 200:
         data = json.loads(res.text)
-        src = data['name']
+        src = data['md5']
         title:str = request.POST.get('title', '')
         date:str = request.POST.get('date', '')
         unprocessed:str = request.POST.get('unprocessed', 'false')

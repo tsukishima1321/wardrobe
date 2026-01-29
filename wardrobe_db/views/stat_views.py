@@ -1,10 +1,10 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Statistics, StatisticsByKeyword, DiaryTexts, BackupRecords, Pictures, Keywords, Messages, Properties
+from wardrobe_db.models import Statistics, StatisticsByKeyword, DiaryTexts, BackupRecords, Pictures, Keywords, Messages, Properties, BlankPictures
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
 from django.db import connections
-from django.db.models import Max
+from django.db.models import Max, Min
 from .common import create_message
 import datetime
 
@@ -16,6 +16,7 @@ def updateStatistics():
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def generateTips(request):
+    # 提醒用户写日记和备份
     lastDiaryDate = DiaryTexts.objects.aggregate(max_date=Max('date'))['max_date']
     if lastDiaryDate:
         daysSinceLastDiary = (datetime.datetime.now().date() - lastDiaryDate).days
@@ -35,6 +36,32 @@ def generateTips(request):
                 level='warning',
                 message_type='Backup',
                 text=f'It has been {daysSinceLastBackup} days since your last backup. Please check the auto backup status!', link='/manage'
+            )
+
+    # 查询BlankPictures，若数量较多或日期较久未清理则提醒用户
+    blank_picture_count = BlankPictures.objects.count()
+    if blank_picture_count > 0:
+        blank_picture_hrefs = BlankPictures.objects.values_list('href', flat=True)
+        oldest_blank_date = Pictures.objects.filter(
+            href__in=blank_picture_hrefs,
+            date__isnull=False
+        ).aggregate(min_date=Min('date'))['min_date']
+
+        reasons = []
+        if blank_picture_count >= 10:
+            reasons.append(f"{blank_picture_count} unprocessed pictures")
+
+        if oldest_blank_date:
+            days_since_oldest_blank = (datetime.datetime.now().date() - oldest_blank_date).days
+            if days_since_oldest_blank >= 7:
+                reasons.append(f"the oldest unprocessed one is {days_since_oldest_blank} days ago")
+
+        if reasons:
+            create_message(
+                level='tips',
+                message_type='BlankPictures',
+                text=f"You have {' and '.join(reasons)}. Please process or remove them.",
+                link='/upload'
             )
 
     # 每月七号生成上月月报
