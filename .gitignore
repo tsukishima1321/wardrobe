@@ -5,6 +5,8 @@ static
 
 logs
 
+training_data.json
+
 # Django #
 *.log
 *.pot

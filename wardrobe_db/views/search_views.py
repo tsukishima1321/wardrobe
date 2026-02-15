@@ -29,7 +29,7 @@ def search(request):
     if byName and not byFullText:
         keys = searchKey.split(' ')
         for k in keys:
-            pictures = pictures.filter(description__contains=k) | pictures.filter(keywords__keyword=k)
+            pictures = pictures.filter(description__contains=k) | pictures.filter(keywords__keyword=k) | pictures.filter(properties__value__contains=k)
     if byFullText and not byName:
         keys = searchKey.split(' ')
         for k in keys:
@@ -37,7 +37,7 @@ def search(request):
     if byName and byFullText:
         keys = searchKey.split(' ')
         for k in keys:
-            pictures = pictures.filter(description__contains=k) | pictures.filter(picturesocr__ocr_result__contains=k)
+            pictures = pictures.filter(description__contains=k) | pictures.filter(picturesocr__ocr_result__contains=k) | pictures.filter(properties__value__contains=k)
     if not byName and not byFullText:
         return HttpResponse('Invalid search method', status=400)
 
