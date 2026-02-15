@@ -8,9 +8,19 @@ import cv2
 
 torch.set_num_threads(2)
 
-reader = easyocr.Reader(['ch_sim','en'],gpu=False)
+reader = None
+
+def load_model():
+    global reader
+    if reader is None:
+        logger.info("Loading EasyOCR model...")
+        reader = easyocr.Reader(['ch_sim','en'],gpu=False)
+        logger.info("EasyOCR model loaded.")
 
 def ocrImg(src:str) -> str:
+    if reader is None:
+        load_model()
+
     logger.info(f"Starting OCR for image: {src}")
     try:
         img = cv2.imread(src)

@@ -7,6 +7,7 @@ import requests
 import random as rand
 from django.conf import settings
 from .common import LOCALHOST, _extract_body
+from wardrobe_db.nlp.model import nlp_engine
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -115,18 +116,28 @@ def newImage(request):
         else:
             ocr_result = PicturesOcr(href=Pictures.objects.get(href=src), ocr_result='')
             ocr_result.save()
-        keywords = request.POST.get('keywords', '')
         if keywords:
             keywordList = json.loads(keywords)
             for kw in keywordList:
                 keyword = Keywords(href=Pictures.objects.get(href=src), keyword=kw)
                 keyword.save()
         properties = request.POST.get('properties', '')
+        prop_update_dict = {}
         if properties:
             propertyList = json.loads(properties)
             for prop in propertyList:
                 property = Properties(href=Pictures.objects.get(href=src), property_name=prop['name'], value=prop['value'])
                 property.save()
+                # Aggregate for NLP update
+                if prop['name'] not in prop_update_dict:
+                    prop_update_dict[prop['name']] = []
+                prop_update_dict[prop['name']].append(prop['value'])
+        
+        # Update NLP model
+        if title:
+            kw_list = json.loads(keywords) if keywords else []
+            nlp_engine.update(title, keywords=kw_list, properties=prop_update_dict, mode='add')
+            
         return HttpResponse(json.dumps({'status':'Success','md5':src}), content_type='application/json')
     else:
         return HttpResponse(res.text, status=400)
