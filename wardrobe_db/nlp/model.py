@@ -55,17 +55,14 @@ class WardrobeNLP:
             if not text:
                 continue
                 
-            words = list(set(jieba.lcut(text))) # 使用 set 去重，一个词在一句话里出现多次只算一次关联
+            words = list(set(jieba.lcut(text)))
             
-            # 训练 Keywords
             for kw in item.get('keywords', []):
                 self.keyword_totals[kw] += 1
                 for word in words:
                     if len(word) > 1: # 忽略单字
                         self.keyword_probs[word][kw] += 1
             
-            # 训练 Properties
-            # value是一个列表
             for name, values_list in item.get('properties', {}).items():
                 if not isinstance(values_list, list):
                     values_list = [values_list]
@@ -142,7 +139,6 @@ class WardrobeNLP:
 
         words = set(jieba.lcut(text))
         
-        # 预测 Keywords
         kw_scores = defaultdict(float)
         for word in words:
             if word in self.keyword_probs:
@@ -154,15 +150,14 @@ class WardrobeNLP:
                     # P(Kw | Word) = Count(Word & Kw) / Count(Word)
                     # 这里我们没存 Count(Word)，暂时用 Count(Word & Kw) 代替作为得分
                     kw_scores[kw] += count
-        
-        # 归一化并排序
-        # 简单的阈值切分
-        sorted_kws = sorted(kw_scores.items(), key=lambda x: x[1], reverse=True)
-        final_keywords = [k for k, s in sorted_kws if s > 5] # 这里的 5 是硬编码的魔法数字，表示至少只要有几个强关联词或者多次共现
 
-        # 预测 Properties
-        # 支持多值预测，返回格式 {prop_name: [val1, val2]}
-        final_props = defaultdict(list)
+        max_kw_score = max(kw_scores.values(), default=0)
+        threshold_score = max(5, max_kw_score * threshold)
+
+        sorted_kws = sorted(kw_scores.items(), key=lambda x: x[1], reverse=True)
+        final_keywords = [k for k, s in sorted_kws if s > threshold_score][:4] # 这里的 5 表示至少只要有几个强关联词或者多次共现
+
+        final_props = list() # [(prop_name, value, score)]
         for prop_name, word_map in self.property_probs.items():
             prop_scores = defaultdict(float)
             for word in words:
@@ -171,18 +166,19 @@ class WardrobeNLP:
                         prop_scores[val] += count
             
             if prop_scores:
-                # 不再只取 max，而是取所有高分值
-                # 动态阈值：比如最高分的 50% 以上
-                max_score = max(prop_scores.values())
-                threshold_score = max(3, max_score * 0.5)
-                
-                valid_vals = [val for val, score in prop_scores.items() if score >= threshold_score]
-                if valid_vals:
-                    final_props[prop_name] = valid_vals
+                final_props.extend([(prop_name, val, score) for val, score in prop_scores.items()])
+
+        max_score = max((score for _, _, score in final_props), default=0)
+        threshold_score = max(5, max_score * threshold)
+        final_props = [(p, v, s) for p, v, s in final_props if s >= threshold_score]
+        
+        final_props = sorted(final_props, key=lambda x: x[2], reverse=True)[:4]
+
+        formatted_props = [{'name': p[0], 'value': p[1], 'score': p[2]} for p in final_props]
 
         return {
-            'keywords': final_keywords[:10], # 限制数量
-            'properties': dict(final_props)
+            'keywords': final_keywords,
+            'properties': formatted_props
         }
 
     def save(self):

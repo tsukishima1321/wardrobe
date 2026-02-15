@@ -18,7 +18,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--api-url',
             type=str,
-            default='http://localhost:8000/wardrobe/api/reload_model',
+            default='http://localhost:8000/metadata/reload/',
             help='URL to trigger model reload'
         )
 
@@ -62,7 +62,6 @@ class Command(BaseCommand):
             try:
                 self.stdout.write(f"Notifying server at {url}...")
                 # Assuming you set up some internal simple auth or allow localhost
-                # For simplicity here we just hit the endpoint
                 resp = requests.post(url, timeout=5)
                 if resp.status_code == 200:
                     self.stdout.write(self.style.SUCCESS("Server successfully reloaded the model."))

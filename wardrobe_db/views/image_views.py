@@ -116,6 +116,8 @@ def newImage(request):
         else:
             ocr_result = PicturesOcr(href=Pictures.objects.get(href=src), ocr_result='')
             ocr_result.save()
+
+        keywords = request.POST.get('keywords', '')
         if keywords:
             keywordList = json.loads(keywords)
             for kw in keywordList:
