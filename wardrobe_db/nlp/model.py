@@ -15,6 +15,7 @@ class WardrobeNLP:
         self.property_probs = defaultdict(nested_defaultdict) # {prop_name: {word: {value: count}}}
         self.keyword_totals = Counter()
         self.property_totals = defaultdict(Counter)
+        self.word_totals = Counter()
 
         self.model_path = os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.pkl')
         self.vocab_loaded = False
@@ -47,6 +48,7 @@ class WardrobeNLP:
         self.property_probs = defaultdict(nested_defaultdict)
         self.keyword_totals = Counter()
         self.property_totals = defaultdict(Counter)
+        self.word_totals = Counter()
 
         print(f"Training on {len(data)} items...")
         
@@ -57,6 +59,10 @@ class WardrobeNLP:
                 
             words = list(set(jieba.lcut(text)))
             
+            for word in words:
+                if len(word) > 1:
+                    self.word_totals[word] += 1
+
             for kw in item.get('keywords', []):
                 self.keyword_totals[kw] += 1
                 for word in words:
@@ -74,7 +80,7 @@ class WardrobeNLP:
                             self.property_probs[name][word][value] += 1
                         
 
-    def update(self, text, keywords=None, properties=None, mode='add'):
+    def update(self, text, keywords=None, properties=None, mode='add', update_word_counts=False):
         """
         实时更新模型的单条记录
         mode: 'add' | 'remove'
@@ -84,6 +90,13 @@ class WardrobeNLP:
 
         words = list(set(jieba.lcut(text)))
         factor = 1 if mode == 'add' else -1
+        
+        if update_word_counts:
+            for word in words:
+                if len(word) > 1:
+                    self.word_totals[word] += factor
+                    if self.word_totals[word] <= 0:
+                        del self.word_totals[word]
 
         # 更新 Keywords
         if keywords:
@@ -129,7 +142,7 @@ class WardrobeNLP:
         # 实时更新不需要立即保存到磁盘，可以依赖定期任务或手动保存，避免IO瓶颈
         # self.save()
 
-    def predict(self, text, threshold=0.3):
+    def predict(self, text, threshold=0.5):
         """
         预测
         """ 
@@ -142,28 +155,32 @@ class WardrobeNLP:
         kw_scores = defaultdict(float)
         for word in words:
             if word in self.keyword_probs:
-                for kw, count in self.keyword_probs[word].items():
-                    # P(Kw|Word) = Count(Word, Kw) / Total(Kw) * IDF_Like_Weight?
-                    # 简化版：直接累加关联度
-                    # 使用稍微平滑一点的概率: count / (total_kw_occurrence + 10)
-                    # 或者更简单的：如果这个词出现，包含这个keyword的概率是多少？
-                    # P(Kw | Word) = Count(Word & Kw) / Count(Word)
-                    # 这里我们没存 Count(Word)，暂时用 Count(Word & Kw) 代替作为得分
-                    kw_scores[kw] += count
+                # P(Kw | Word) = Count(Word & Kw) / Count(Word)，在此基础上除以 P(Kw) 来降低高频关键词的影响，同时计算时加上平滑项避免低频关键词过度影响结果
+                word_total = self.word_totals[word]
+                if word_total > 0:
+                    for kw, count in self.keyword_probs[word].items():
+                        keyword_totals_sum = sum(self.keyword_totals.values())
+                        prob = count / word_total / ((self.keyword_totals[kw] + keyword_totals_sum / len(self.keyword_totals) * 2) / keyword_totals_sum)
+                        kw_scores[kw] += prob
 
         max_kw_score = max(kw_scores.values(), default=0)
         threshold_score = max(5, max_kw_score * threshold)
 
         sorted_kws = sorted(kw_scores.items(), key=lambda x: x[1], reverse=True)
-        final_keywords = [k for k, s in sorted_kws if s > threshold_score][:4] # 这里的 5 表示至少只要有几个强关联词或者多次共现
+
+        final_keywords = [k for k, s in sorted_kws if s > threshold_score][:4]
 
         final_props = list() # [(prop_name, value, score)]
         for prop_name, word_map in self.property_probs.items():
             prop_scores = defaultdict(float)
             for word in words:
                 if word in word_map:
-                    for val, count in word_map[word].items():
-                        prop_scores[val] += count
+                    word_total = self.word_totals[word]
+                    if word_total > 0:
+                        for val, count in word_map[word].items():
+                            s = sum(self.property_totals[prop_name].values())
+                            prob = count / word_total / ((self.property_totals[prop_name][val] + s / len(self.property_totals[prop_name]) * 2) / s)
+                            prop_scores[val] += prob
             
             if prop_scores:
                 final_props.extend([(prop_name, val, score) for val, score in prop_scores.items()])
@@ -188,7 +205,8 @@ class WardrobeNLP:
                     'keyword_probs': self.keyword_probs,
                     'property_probs': self.property_probs,
                     'keyword_totals': self.keyword_totals,
-                    'property_totals': self.property_totals
+                    'property_totals': self.property_totals,
+                    'word_totals': self.word_totals
                 }, f)
             print(f"Model saved to {self.model_path}")
         except Exception as e:
@@ -203,6 +221,7 @@ class WardrobeNLP:
                     self.property_probs = data['property_probs']
                     self.keyword_totals = data.get('keyword_totals', Counter())
                     self.property_totals = data.get('property_totals', defaultdict(Counter))
+                    self.word_totals = data.get('word_totals', Counter())
                 print("Model loaded successfully.")
                 self.load_user_dict() # 加载完模型顺便加载词典
                 return True

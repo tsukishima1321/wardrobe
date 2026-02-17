@@ -138,7 +138,7 @@ def newImage(request):
         # Update NLP model
         if title:
             kw_list = json.loads(keywords) if keywords else []
-            nlp_engine.update(title, keywords=kw_list, properties=prop_update_dict, mode='add')
+            nlp_engine.update(title, keywords=kw_list, properties=prop_update_dict, mode='add', update_word_counts=True)
             
         return HttpResponse(json.dumps({'status':'Success','md5':src}), content_type='application/json')
     else:
