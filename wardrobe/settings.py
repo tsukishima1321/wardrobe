@@ -84,6 +84,11 @@ LOGGING = {
             'handlers': ['console', 'file'],
             'propagate': True,
         },
+        'nlp': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+            'propagate': True,
+        },
     },
     "root": {
         "handlers": ["console",'file'],

@@ -1,9 +1,12 @@
 import jieba
 import pickle
 import os
+import logging
 from collections import defaultdict, Counter
 from django.conf import settings
-from wardrobe_db.models import Keywords, Properties
+from wardrobe_db.models import Keywords, Properties, UserDictionary
+
+logger = logging.getLogger('nlp')
 
 
 def nested_defaultdict():
@@ -16,6 +19,7 @@ class WardrobeNLP:
         self.keyword_totals = Counter()
         self.property_totals = defaultdict(Counter)
         self.word_totals = Counter()
+        self.allowed_single_char_words = set()
 
         self.model_path = os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.pkl')
         self.vocab_loaded = False
@@ -30,14 +34,32 @@ class WardrobeNLP:
         print("Loading user dictionary for segmentation...")
         keywords = Keywords.objects.values_list('keyword', flat=True).distinct()
         properties = Properties.objects.values_list('value', flat=True).distinct()
+        user_words = UserDictionary.objects.values_list('word', flat=True).distinct()
+        print(f"Loaded {len(keywords)} unique keywords, {len(properties)} unique property values, and {len(user_words)} user dictionary words from the database.")
+
+        self.allowed_single_char_words = {w for w in user_words if w and len(w) == 1}
         
         count = 0
-        for word in set(keywords) | set(properties):
-            if word and len(word) > 1:
+        for word in set(keywords) | set(properties) | set(user_words):
+            if word:
                 jieba.add_word(word, freq=20000)
                 count += 1
         print(f"Loaded {count} words into user dictionary.")
         self.vocab_loaded = True
+
+    def refresh_user_dict(self):
+        self.vocab_loaded = False
+        self.load_user_dict()
+
+    def _is_model_token(self, word):
+        if not word:
+            return False
+        if len(word) > 1:
+            return True
+        return word in self.allowed_single_char_words
+
+    def _tokenize_for_model(self, text):
+        return {word for word in jieba.lcut(text) if self._is_model_token(word)}
 
     def train(self, data):
         """
@@ -57,17 +79,15 @@ class WardrobeNLP:
             if not text:
                 continue
                 
-            words = list(set(jieba.lcut(text)))
+            words = list(self._tokenize_for_model(text))
             
             for word in words:
-                if len(word) > 1:
-                    self.word_totals[word] += 1
+                self.word_totals[word] += 1
 
             for kw in item.get('keywords', []):
                 self.keyword_totals[kw] += 1
                 for word in words:
-                    if len(word) > 1: # 忽略单字
-                        self.keyword_probs[word][kw] += 1
+                    self.keyword_probs[word][kw] += 1
             
             for name, values_list in item.get('properties', {}).items():
                 if not isinstance(values_list, list):
@@ -76,8 +96,7 @@ class WardrobeNLP:
                 for value in values_list:
                     self.property_totals[name][value] += 1
                     for word in words:
-                        if len(word) > 1:
-                            self.property_probs[name][word][value] += 1
+                        self.property_probs[name][word][value] += 1
                         
 
     def update(self, text, keywords=None, properties=None, mode='add', update_word_counts=False):
@@ -88,15 +107,14 @@ class WardrobeNLP:
         if not text:
             return
 
-        words = list(set(jieba.lcut(text)))
+        words = list(self._tokenize_for_model(text))
         factor = 1 if mode == 'add' else -1
         
         if update_word_counts:
             for word in words:
-                if len(word) > 1:
-                    self.word_totals[word] += factor
-                    if self.word_totals[word] <= 0:
-                        del self.word_totals[word]
+                self.word_totals[word] += factor
+                if self.word_totals[word] <= 0:
+                    del self.word_totals[word]
 
         # 更新 Keywords
         if keywords:
@@ -106,15 +124,14 @@ class WardrobeNLP:
                 if self.keyword_totals[kw] < 0: self.keyword_totals[kw] = 0
                 
                 for word in words:
-                    if len(word) > 1:
-                        self.keyword_probs[word][kw] += factor
-                        if self.keyword_probs[word][kw] <= 0:
-                            if kw in self.keyword_probs[word]:
-                                del self.keyword_probs[word][kw]
+                    self.keyword_probs[word][kw] += factor
+                    if self.keyword_probs[word][kw] <= 0:
+                        if kw in self.keyword_probs[word]:
+                            del self.keyword_probs[word][kw]
         
                 # 如果某个词的映射现在为空，清理掉
                 for word in words:
-                    if len(word) > 1 and word in self.keyword_probs and not self.keyword_probs[word]:
+                    if word in self.keyword_probs and not self.keyword_probs[word]:
                         del self.keyword_probs[word]
 
         # 更新 Properties
@@ -128,15 +145,14 @@ class WardrobeNLP:
                     if self.property_totals[name][value] < 0: self.property_totals[name][value] = 0
 
                     for word in words:
-                        if len(word) > 1:
-                            self.property_probs[name][word][value] += factor
-                            if self.property_probs[name][word][value] <= 0:
-                                if value in self.property_probs[name][word]:
-                                    del self.property_probs[name][word][value]
+                        self.property_probs[name][word][value] += factor
+                        if self.property_probs[name][word][value] <= 0:
+                            if value in self.property_probs[name][word]:
+                                del self.property_probs[name][word][value]
                     
                     # 清理空的映射
                     for word in words:
-                        if len(word) > 1 and word in self.property_probs[name] and not self.property_probs[name][word]:
+                        if word in self.property_probs[name] and not self.property_probs[name][word]:
                             del self.property_probs[name][word]
         
         # 实时更新不需要立即保存到磁盘，可以依赖定期任务或手动保存，避免IO瓶颈
@@ -150,7 +166,10 @@ class WardrobeNLP:
         if not text:
             return {'keywords': [], 'properties': {}}
 
-        words = set(jieba.lcut(text))
+        if not self.vocab_loaded:
+            self.load_user_dict()
+
+        words = self._tokenize_for_model(text)
         
         kw_scores = defaultdict(float)
         for word in words:

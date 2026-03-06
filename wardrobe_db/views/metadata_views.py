@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, Keywords, Properties
+from wardrobe_db.models import Pictures, Keywords, Properties, UserDictionary
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 import json
@@ -163,4 +163,45 @@ def deleteProperty(request):
     if picture and picture.description:
         nlp_engine.update(picture.description, properties={name: [value]}, mode='remove')
 
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def listUserDictionary(request):
+    words = UserDictionary.objects.all().order_by('word').values_list('word', flat=True)
+    return HttpResponse(json.dumps(list(words), ensure_ascii=False), content_type='application/json')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def createUserDictionaryWord(request):
+    body = _extract_body(request)
+    word = (body.get('word') or '').strip()
+    if not word:
+        return HttpResponse('Missing word', status=400)
+
+    if len(word) > 50:
+        return HttpResponse('Word is too long', status=400)
+
+    _, created = UserDictionary.objects.get_or_create(word=word)
+    if not created:
+        return HttpResponse('Word already exists', status=400)
+
+    nlp_engine.refresh_user_dict()
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def deleteUserDictionaryWord(request):
+    body = _extract_body(request)
+    word = (body.get('word') or '').strip()
+    if not word:
+        return HttpResponse('Missing word', status=400)
+
+    deleted_count, _ = UserDictionary.objects.filter(word=word).delete()
+    if not deleted_count:
+        return HttpResponse('Word does not exist', status=404)
+
+    nlp_engine.refresh_user_dict()
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')

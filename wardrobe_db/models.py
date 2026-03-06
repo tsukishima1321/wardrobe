@@ -117,3 +117,13 @@ class BlankPictures(models.Model):
     class Meta:
         managed = True
         db_table = 'blank_pictures'
+
+
+class UserDictionary(models.Model):
+    id = models.AutoField(primary_key=True)
+    word = models.CharField(max_length=50, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'user_dictionary'
