@@ -12,10 +12,23 @@ class Pictures(models.Model):
     href = models.CharField(primary_key=True, max_length=100)
     description = models.CharField(max_length=100, db_collation='utf8mb3_general_ci', blank=True, null=True)
     date = models.DateField(blank=True, null=True)
+    is_collection = models.BooleanField(default=False)
 
     class Meta:
         managed = True
         db_table = 'pictures'
+
+
+class CollectionItems(models.Model):
+    id = models.AutoField(primary_key=True)
+    collection = models.ForeignKey(Pictures, on_delete=models.CASCADE, db_column='collection_href', related_name='collection_items')
+    image_href = models.CharField(max_length=200)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        managed = True
+        db_table = 'collection_items'
+        ordering = ['sort_order']
 
 
 class PicturesOcr(models.Model):

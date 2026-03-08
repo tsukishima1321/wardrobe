@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views, diary_views
+from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views, diary_views, collection_views
 
 app_name = 'wardrobe_db'
 
@@ -51,4 +51,9 @@ urlpatterns = [
     path('diary/new/', diary_views.newDiaryText, name='newDiaryText'),
     path('diary/delete/', diary_views.deleteDiaryText, name='deleteDiaryText'),
     path('diary/edit/', diary_views.editDiaryText, name='editDiaryText'),
+    path('collection/create/', collection_views.createCollection, name='createCollection'),
+    path('collection/add/', collection_views.addCollectionItem, name='addCollectionItem'),
+    path('collection/remove/', collection_views.removeCollectionItem, name='removeCollectionItem'),
+    path('collection/delete/', collection_views.deleteCollection, name='deleteCollection'),
+    path('collection/list/', collection_views.listCollectionItems, name='listCollectionItems'),
 ]

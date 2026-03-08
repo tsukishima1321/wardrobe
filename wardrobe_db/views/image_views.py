@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Keywords, Properties, BlankPictures
+from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Keywords, Properties, BlankPictures, CollectionItems
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -20,7 +20,10 @@ def getImageDetail(request):
         ocr_result = ocr_result[0].ocr_result
     else:
         ocr_result = ''
-    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result}
+    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result, 'is_collection': picture.is_collection}
+    if picture.is_collection:
+        items = CollectionItems.objects.filter(collection=picture).order_by('sort_order')
+        response['items'] = [{'image_href': item.image_href, 'sort_order': item.sort_order} for item in items]
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 @api_view(['POST'])
@@ -45,9 +48,11 @@ def setImageDetail(request):
 def deleteImage(request):
     body = _extract_body(request)
     src = body.get('src', '')
-    picture = Pictures.objects.filter(href=src)
+    picture = Pictures.objects.filter(href=src).first()
     if not picture:
         return HttpResponse('Invalid picture', status=400)
+    if picture.is_collection:
+        return HttpResponse('Use collection/delete/ endpoint for collections', status=400)
     picture.delete()
     ocr_result = PicturesOcr.objects.filter(href=src)
     if ocr_result:
@@ -77,10 +82,13 @@ def setImageText(request):
 @permission_classes([IsAuthenticated])
 def random(request):
     keywordFilter = request.query_params.get('keyword', '')
+    includeCollections = request.query_params.get('includeCollections', 'false').lower() == 'true'
     if keywordFilter:
         pictures = Pictures.objects.filter(keywords__keyword=keywordFilter)
     else:
         pictures = Pictures.objects.all()
+    if not includeCollections:
+        pictures = pictures.filter(is_collection=False)
     picture = rand.choice(pictures)
     response = {'src': picture.href, 'title': picture.description}
     return HttpResponse(json.dumps(response), content_type='application/json')

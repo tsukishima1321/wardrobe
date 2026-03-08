@@ -77,7 +77,7 @@ def search(request):
     #hrefList = [{'src' = picture.href,'title' = picture.description} for picture in pictures]
     hrefList = []
     for picture in pictures:
-        hrefList.append({'src': picture.href, 'title': picture.description,'date':picture.date.strftime('%Y-%m-%d')})
+        hrefList.append({'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d'), 'is_collection': picture.is_collection})
     response = {'total':total,'totalPage': totalPage, 'hrefList': hrefList}
 
     return HttpResponse(json.dumps(response), content_type='application/json')

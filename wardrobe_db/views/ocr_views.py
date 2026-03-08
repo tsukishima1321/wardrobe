@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Messages
+from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Messages, CollectionItems
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -67,15 +67,29 @@ def cleanOcrMission(request):
     return HttpResponse(json.dumps({'status': 'Success', 'deleted_count': count}), content_type='application/json')
 
 def performOcr(src:str):
-    mission = OcrMission.objects.filter(href=Pictures.objects.get(href=src))[0]
+    picture = Pictures.objects.get(href=src)
+    mission = OcrMission.objects.filter(href=picture)[0]
 
-    ocr_result = ocr.ocrImg(settings.IMAGE_STORAGE_PATH + src)
-    PicturesOcr.objects.update_or_create(href=Pictures.objects.get(href=src), defaults={'ocr_result': ocr_result})
+    if picture.is_collection:
+        items = CollectionItems.objects.filter(collection=picture).order_by('sort_order')
+        results = []
+        for item in items:
+            item_path = settings.IMAGE_STORAGE_PATH + item.image_href
+            try:
+                result = ocr.ocrImg(item_path)
+                if result:
+                    results.append(result)
+            except Exception as e:
+                logger.warning(f'OCR failed for collection item {item.image_href}: {e}')
+        ocr_result = '\n'.join(results)
+    else:
+        ocr_result = ocr.ocrImg(settings.IMAGE_STORAGE_PATH + src)
+
+    PicturesOcr.objects.update_or_create(href=picture, defaults={'ocr_result': ocr_result})
     
     mission.status = 'finished'
     mission.save()
-    title = Pictures.objects.get(href=src).description
-    # Messages.objects.create(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.', link='/detail/' + src)
+    title = picture.description
     create_message(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.', link='/detail/' + src)
 
 def performAllOcr():
