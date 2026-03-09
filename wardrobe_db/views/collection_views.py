@@ -5,35 +5,237 @@ from rest_framework.permissions import IsAuthenticated
 import json
 import uuid
 import os
+import threading
 import requests
 from django.conf import settings
-from PIL import Image
+from PIL import Image, ImageDraw
 from .common import LOCALHOST, _extract_body
 from wardrobe_db.nlp.model import nlp_engine
 
+# ---------------------------------------------------------------------------
+# Collection thumbnail generator – magazine-style collage
+# ---------------------------------------------------------------------------
+
+_CANVAS = 600          # Final composite is _CANVAS x _CANVAS pixels
+_GAP = 4               # Gap between cells (pixels)
+_RADIUS = 12           # Corner radius for the overall composite
+_BG = (245, 245, 245)  # Light-grey background visible through gaps
+_MAX_IMAGES = 7        # Use up to this many images
+
+
+def _center_crop_fill(img, target_w, target_h):
+    """Resize *img* so it fully covers (target_w, target_h), then center-crop."""
+    src_ratio = img.width / img.height
+    dst_ratio = target_w / target_h
+    if src_ratio > dst_ratio:
+        # Wider than needed – match height, crop width
+        new_h = target_h
+        new_w = int(target_h * src_ratio)
+    else:
+        new_w = target_w
+        new_h = int(target_w / src_ratio) if src_ratio else target_h
+    img = img.resize((max(new_w, 1), max(new_h, 1)), Image.LANCZOS)
+    left = (img.width - target_w) // 2
+    top = (img.height - target_h) // 2
+    return img.crop((left, top, left + target_w, top + target_h))
+
+
+def _round_corners(img, radius):
+    """Apply rounded corners to an RGBA or RGB image, returning RGBA."""
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    mask = Image.new('L', img.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rounded_rectangle([(0, 0), img.size], radius=radius, fill=255)
+    img.putalpha(mask)
+    return img
+
+
+def _classify_orientation(images):
+    """Return 'portrait', 'landscape', or 'mixed'."""
+    portraits = sum(1 for im in images if im.height > im.width)
+    landscapes = sum(1 for im in images if im.width > im.height)
+    total = len(images)
+    if portraits >= total * 0.7:
+        return 'portrait'
+    if landscapes >= total * 0.7:
+        return 'landscape'
+    return 'mixed'
+
+
+def _layout_cells(count, orientation):
+    """Return a list of (x, y, w, h) tuples describing cell positions.
+
+    All coordinates are in a normalised 0-based pixel grid of size
+    (_CANVAS x _CANVAS).  Gaps are baked in.
+    """
+    S = _CANVAS
+    G = _GAP
+    half = (S - G) // 2
+    third = (S - 2 * G) // 3
+
+    if count == 1:
+        return [(0, 0, S, S)]
+
+    if count == 2:
+        if orientation == 'portrait':
+            # Two tall columns side by side
+            return [(0, 0, half, S), (half + G, 0, half, S)]
+        else:
+            # Two wide rows stacked
+            return [(0, 0, S, half), (0, half + G, S, half)]
+
+    if count == 3:
+        if orientation == 'portrait':
+            # One big left column + two stacked on the right
+            big_w = int(S * 0.6)
+            small_w = S - big_w - G
+            return [
+                (0, 0, big_w, S),
+                (big_w + G, 0, small_w, half),
+                (big_w + G, half + G, small_w, half),
+            ]
+        elif orientation == 'landscape':
+            # One big top row + two side-by-side bottom
+            big_h = int(S * 0.6)
+            small_h = S - big_h - G
+            return [
+                (0, 0, S, big_h),
+                (0, big_h + G, half, small_h),
+                (half + G, big_h + G, half, small_h),
+            ]
+        else:
+            # T-layout: big left, two stacked right
+            big_w = int(S * 0.55)
+            small_w = S - big_w - G
+            return [
+                (0, 0, big_w, S),
+                (big_w + G, 0, small_w, half),
+                (big_w + G, half + G, small_w, half),
+            ]
+
+    if count == 4:
+        # 2x2 grid – works well for any orientation
+        return [
+            (0, 0, half, half),
+            (half + G, 0, half, half),
+            (0, half + G, half, half),
+            (half + G, half + G, half, half),
+        ]
+
+    if count == 5:
+        if orientation == 'portrait':
+            # Top row: 2 portrait slots, bottom row: 3 narrower
+            top_h = int(S * 0.55)
+            bot_h = S - top_h - G
+            return [
+                (0, 0, half, top_h),
+                (half + G, 0, half, top_h),
+                (0, top_h + G, third, bot_h),
+                (third + G, top_h + G, third, bot_h),
+                (2 * (third + G), top_h + G, third, bot_h),
+            ]
+        elif orientation == 'landscape':
+            # Left column: 2 landscape rows, right: 3 rows
+            left_w = int(S * 0.55)
+            right_w = S - left_w - G
+            return [
+                (0, 0, left_w, half),
+                (0, half + G, left_w, half),
+                (left_w + G, 0, right_w, third),
+                (left_w + G, third + G, right_w, third),
+                (left_w + G, 2 * (third + G), right_w, third),
+            ]
+        else:
+            # One big + 4 small in a 2x2 grid on the right/bottom
+            big = int(S * 0.6)
+            small = (S - big - G)
+            sq = (small - G) // 2
+            bx = big + G
+            by = big + G
+            return [
+                (0, 0, big, big),
+                (bx, 0, sq, sq),
+                (bx + sq + G, 0, sq, sq),
+                (0, by, sq, sq),
+                (sq + G, by, sq, sq),
+            ]
+
+    if count == 6:
+        # 3x2 or 2x3 depending on orientation
+        if orientation == 'landscape':
+            row_h = (S - G) // 2
+            col_w = third
+            cells = []
+            for r in range(2):
+                for c in range(3):
+                    cells.append((c * (third + G), r * (row_h + G), third, row_h))
+            return cells
+        else:
+            col_w = (S - G) // 2
+            row_h = third
+            cells = []
+            for r in range(3):
+                for c in range(2):
+                    cells.append((c * (col_w + G), r * (third + G), col_w, third))
+            return cells
+
+    # count >= 7: hero image on top + 3 on each side below (grid of 6)
+    hero_h = int(S * 0.45)
+    bot_h = S - hero_h - G
+    bot_third = (S - 2 * G) // 3
+    cells = [(0, 0, S, hero_h)]
+    # Bottom two rows of 3
+    remaining = min(count - 1, 6)
+    cols = 3
+    rows = (remaining + cols - 1) // cols  # 1 or 2 rows
+    row_h = (bot_h - (rows - 1) * G) // rows if rows else bot_h
+    idx = 0
+    for r in range(rows):
+        items_in_row = min(cols, remaining - idx)
+        cw = (S - (items_in_row - 1) * G) // items_in_row
+        for c in range(items_in_row):
+            cells.append((c * (cw + G), hero_h + G + r * (row_h + G), cw, row_h))
+            idx += 1
+    return cells
+
 
 def _generate_collection_thumbnail(collection_href):
-    """Generate a composite image for a collection from its first few items.
-    Prefer liked items; fall back to all items if none are liked."""
-    liked_items = CollectionItems.objects.filter(collection_id=collection_href, liked=True).order_by('sort_order')[:4]
-    items = liked_items if liked_items.exists() else CollectionItems.objects.filter(collection_id=collection_href).order_by('sort_order')[:4]
+    """Generate a magazine-style composite image for a collection.
+
+    Strategy:
+    1. Prefer liked items; fall back to all items.
+    2. Classify dominant orientation (portrait / landscape / mixed).
+    3. Pick a layout template that flatters the orientation.
+    4. Center-crop each image into its cell for a clean, gapless look.
+    5. Apply rounded corners to the final composite.
+    """
+    liked_items = CollectionItems.objects.filter(
+        collection_id=collection_href, liked=True
+    ).order_by('sort_order')[:_MAX_IMAGES]
+    items = (
+        liked_items if liked_items.exists()
+        else CollectionItems.objects.filter(
+            collection_id=collection_href
+        ).order_by('sort_order')[:_MAX_IMAGES]
+    )
 
     composite_path = os.path.join(settings.IMAGE_STORAGE_PATH, collection_href)
     thumb_path = os.path.join(settings.THUMBNAILS_STORAGE_PATH, collection_href)
 
     if not items:
-        for path in [composite_path, thumb_path]:
-            if os.path.exists(path):
-                os.remove(path)
+        for p in [composite_path, thumb_path]:
+            if os.path.exists(p):
+                os.remove(p)
         return
 
     images = []
     for item in items:
-        path = os.path.join(settings.IMAGE_STORAGE_PATH, item.image_href)
-        if os.path.exists(path):
+        p = os.path.join(settings.IMAGE_STORAGE_PATH, item.image_href)
+        if os.path.exists(p):
             try:
-                img = Image.open(path)
-                if img.mode != 'RGB':
+                img = Image.open(p)
+                if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGB')
                 images.append(img)
             except Exception:
@@ -42,34 +244,22 @@ def _generate_collection_thumbnail(collection_href):
     if not images:
         return
 
-    cell = 200
-    count = len(images)
+    orientation = _classify_orientation(images)
+    cells = _layout_cells(len(images), orientation)
 
-    if count == 1:
-        img = images[0].copy()
-        img.thumbnail((cell * 2, cell * 2))
-        composite = Image.new('RGB', (cell * 2, cell * 2), (255, 255, 255))
-        composite.paste(img, ((cell * 2 - img.width) // 2, (cell * 2 - img.height) // 2))
-    elif count == 2:
-        composite = Image.new('RGB', (cell * 2, cell), (255, 255, 255))
-        for i, img in enumerate(images):
-            img.thumbnail((cell, cell))
-            composite.paste(img, (i * cell + (cell - img.width) // 2, (cell - img.height) // 2))
-    elif count == 3:
-        composite = Image.new('RGB', (cell * 2, cell * 2), (255, 255, 255))
-        images[0].thumbnail((cell * 2, cell))
-        composite.paste(images[0], ((cell * 2 - images[0].width) // 2, (cell - images[0].height) // 2))
-        for i in range(1, 3):
-            images[i].thumbnail((cell, cell))
-            composite.paste(images[i], ((i - 1) * cell + (cell - images[i].width) // 2, cell + (cell - images[i].height) // 2))
-    else:
-        composite = Image.new('RGB', (cell * 2, cell * 2), (255, 255, 255))
-        for i, img in enumerate(images[:4]):
-            img.thumbnail((cell, cell))
-            row, col = divmod(i, 2)
-            composite.paste(img, (col * cell + (cell - img.width) // 2, row * cell + (cell - img.height) // 2))
+    composite = Image.new('RGB', (_CANVAS, _CANVAS), _BG)
 
-    composite.save(composite_path, 'JPEG')
+    for img, (cx, cy, cw, ch) in zip(images, cells):
+        cropped = _center_crop_fill(img, cw, ch)
+        composite.paste(cropped, (cx, cy))
+
+    # Round the overall corners
+    composite = _round_corners(composite, _RADIUS)
+
+    # Flatten to RGB on white for JPEG saving
+    flat = Image.new('RGB', composite.size, (255, 255, 255))
+    flat.paste(composite, mask=composite.split()[3])
+    flat.save(composite_path, 'JPEG', quality=88)
 
     # Remove cached thumbnail so it gets regenerated on next request
     if os.path.exists(thumb_path):
@@ -150,7 +340,7 @@ def addCollectionItem(request):
 
     CollectionItems.objects.create(collection=collection, image_href=image_href, sort_order=sort_order)
 
-    _generate_collection_thumbnail(collection_href)
+    threading.Thread(target=_generate_collection_thumbnail, args=(collection_href,), daemon=True).start()
 
     return HttpResponse(json.dumps({'status': 'Success', 'image_href': image_href, 'sort_order': sort_order}), content_type='application/json')
 
@@ -177,7 +367,7 @@ def likeCollectionItem(request):
     item.liked = bool(liked)
     item.save()
 
-    _generate_collection_thumbnail(collection_href)
+    threading.Thread(target=_generate_collection_thumbnail, args=(collection_href,), daemon=True).start()
 
     return HttpResponse(json.dumps({'status': 'Success', 'liked': item.liked}), content_type='application/json')
 
@@ -211,7 +401,7 @@ def removeCollectionItem(request):
         if os.path.exists(thumb_path):
             os.remove(thumb_path)
 
-    _generate_collection_thumbnail(collection_href)
+    threading.Thread(target=_generate_collection_thumbnail, args=(collection_href,), daemon=True).start()
 
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
 
