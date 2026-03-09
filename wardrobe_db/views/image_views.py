@@ -22,8 +22,8 @@ def getImageDetail(request):
         ocr_result = ''
     response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result, 'is_collection': picture.is_collection}
     if picture.is_collection:
-        items = CollectionItems.objects.filter(collection=picture).order_by('sort_order')
-        response['items'] = [{'image_href': item.image_href, 'sort_order': item.sort_order} for item in items]
+        items = CollectionItems.objects.filter(collection=picture)
+        response['items'] = [{'image_href': item.image_href, 'sort_order': item.sort_order, 'liked': item.liked} for item in items]
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 @api_view(['POST'])

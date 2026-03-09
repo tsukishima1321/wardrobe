@@ -56,4 +56,5 @@ urlpatterns = [
     path('collection/remove/', collection_views.removeCollectionItem, name='removeCollectionItem'),
     path('collection/delete/', collection_views.deleteCollection, name='deleteCollection'),
     path('collection/list/', collection_views.listCollectionItems, name='listCollectionItems'),
+    path('collection/like/', collection_views.likeCollectionItem, name='likeCollectionItem'),
 ]

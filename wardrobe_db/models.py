@@ -24,11 +24,12 @@ class CollectionItems(models.Model):
     collection = models.ForeignKey(Pictures, on_delete=models.CASCADE, db_column='collection_href', related_name='collection_items')
     image_href = models.CharField(max_length=200)
     sort_order = models.IntegerField(default=0)
+    liked = models.BooleanField(default=False)
 
     class Meta:
         managed = True
         db_table = 'collection_items'
-        ordering = ['sort_order']
+        ordering = ['-liked', 'sort_order']
 
 
 class PicturesOcr(models.Model):

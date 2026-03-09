@@ -13,8 +13,10 @@ from wardrobe_db.nlp.model import nlp_engine
 
 
 def _generate_collection_thumbnail(collection_href):
-    """Generate a composite image for a collection from its first few items."""
-    items = CollectionItems.objects.filter(collection_id=collection_href).order_by('sort_order')[:4]
+    """Generate a composite image for a collection from its first few items.
+    Prefer liked items; fall back to all items if none are liked."""
+    liked_items = CollectionItems.objects.filter(collection_id=collection_href, liked=True).order_by('sort_order')[:4]
+    items = liked_items if liked_items.exists() else CollectionItems.objects.filter(collection_id=collection_href).order_by('sort_order')[:4]
 
     composite_path = os.path.join(settings.IMAGE_STORAGE_PATH, collection_href)
     thumb_path = os.path.join(settings.THUMBNAILS_STORAGE_PATH, collection_href)
@@ -155,6 +157,33 @@ def addCollectionItem(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def likeCollectionItem(request):
+    body = _extract_body(request)
+    collection_href = (body.get('src') or '').strip()
+    image_href = (body.get('image_href') or '').strip()
+    liked = body.get('liked', True)
+
+    if not collection_href or not image_href:
+        return HttpResponse('Missing src or image_href', status=400)
+
+    collection = Pictures.objects.filter(href=collection_href, is_collection=True).first()
+    if not collection:
+        return HttpResponse('Collection not found', status=404)
+
+    item = CollectionItems.objects.filter(collection=collection, image_href=image_href).first()
+    if not item:
+        return HttpResponse('Item not found in collection', status=404)
+
+    item.liked = bool(liked)
+    item.save()
+
+    _generate_collection_thumbnail(collection_href)
+
+    return HttpResponse(json.dumps({'status': 'Success', 'liked': item.liked}), content_type='application/json')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def removeCollectionItem(request):
     body = _extract_body(request)
     collection_href = (body.get('src') or '').strip()
@@ -240,7 +269,7 @@ def listCollectionItems(request):
     if not collection:
         return HttpResponse('Collection not found', status=404)
 
-    items = CollectionItems.objects.filter(collection=collection).order_by('sort_order')
-    data = [{'image_href': item.image_href, 'sort_order': item.sort_order} for item in items]
+    items = CollectionItems.objects.filter(collection=collection)
+    data = [{'image_href': item.image_href, 'sort_order': item.sort_order, 'liked': item.liked} for item in items]
 
     return HttpResponse(json.dumps(data), content_type='application/json')
