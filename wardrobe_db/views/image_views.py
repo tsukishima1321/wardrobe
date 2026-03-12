@@ -70,7 +70,7 @@ def setImageText(request):
     body = _extract_body(request)
     src = body.get('src', '')
     text = body.get('text', '')
-    ocr_result = PicturesOcr.objects.get(href=src)
+    ocr_result = PicturesOcr.objects.filter(href=src).first()
     if ocr_result:
         ocr_result.ocr_result = text
     else:
