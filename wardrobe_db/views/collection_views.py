@@ -147,18 +147,18 @@ def _layout_cells(count, orientation):
                 (left_w + G, 2 * (third + G), right_w, third),
             ]
         else:
-            # One big + 4 small in a 2x2 grid on the right/bottom
+            # L-shape: big top-left, 2 stacked right, 2 side-by-side bottom
             big = int(S * 0.6)
-            small = (S - big - G)
-            sq = (small - G) // 2
-            bx = big + G
-            by = big + G
+            right_w = S - big - G
+            right_h = (big - G) // 2
+            bot_h = S - big - G
+            bot_w = (S - G) // 2
             return [
                 (0, 0, big, big),
-                (bx, 0, sq, sq),
-                (bx + sq + G, 0, sq, sq),
-                (0, by, sq, sq),
-                (sq + G, by, sq, sq),
+                (big + G, 0, right_w, right_h),
+                (big + G, right_h + G, right_w, right_h),
+                (0, big + G, bot_w, bot_h),
+                (bot_w + G, big + G, bot_w, bot_h),
             ]
 
     if count == 6:
