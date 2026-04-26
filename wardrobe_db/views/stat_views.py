@@ -1,12 +1,21 @@
-from django.http import HttpResponse
-from wardrobe_db.models import Statistics, StatisticsByKeyword, DiaryTexts, BackupRecords, Pictures, Keywords, Messages, Properties, BlankPictures
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from collections import Counter, defaultdict
+import calendar
+import datetime
 import json
+import re
+
+import jieba
 from django.db import connections
 from django.db.models import Max, Min
-from .common import create_message
-import datetime
+from django.http import HttpResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
+from wardrobe_db.models import Statistics, StatisticsByKeyword, DiaryTexts, BackupRecords, Pictures, Keywords, Messages, Properties, BlankPictures
+from .common import _extract_body, create_message
+
+REPORT_GRANULARITIES = {'day', 'month', 'year'}
+REPORT_TOKEN_PATTERN = re.compile(r'[\u4e00-\u9fffA-Za-z0-9]+')
 
 def updateStatistics():
     connection = connections['business']
@@ -150,4 +159,193 @@ def getStatistics(request):
         typename = s.keyword
         typeList.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
     response = {'overall': overall, 'types': typeList}
+    return HttpResponse(json.dumps(response), content_type='application/json')
+
+
+def _normalize_report_term(term):
+    return (term or '').strip()
+
+
+def _bucket_start(date_value, granularity):
+    if granularity == 'year':
+        return date_value.replace(month=1, day=1)
+    if granularity == 'month':
+        return date_value.replace(day=1)
+    return date_value
+
+
+def _bucket_label(date_value, granularity):
+    if granularity == 'year':
+        return date_value.strftime('%Y')
+    if granularity == 'month':
+        return date_value.strftime('%Y-%m')
+    return date_value.strftime('%Y-%m-%d')
+
+
+def _bucket_end(date_value, granularity):
+    if granularity == 'year':
+        return date_value.replace(month=12, day=31)
+    if granularity == 'month':
+        last_day = calendar.monthrange(date_value.year, date_value.month)[1]
+        return date_value.replace(day=last_day)
+    return date_value
+
+
+def _tokenize_title_for_report(text, target_word):
+    if not text:
+        return []
+
+    jieba.add_word(target_word, freq=20000)
+    tokens = []
+    for raw_token in jieba.lcut(text):
+        token = raw_token.strip()
+        if not token or token == target_word:
+            continue
+        if not REPORT_TOKEN_PATTERN.fullmatch(token):
+            continue
+        if len(token) == 1 and not token.isdigit() and not token.isascii():
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def _sorted_counter_items(counter, key_name, top_n):
+    return [
+        {key_name: item_key, 'count': count}
+        for item_key, count in counter.most_common(top_n)
+    ]
+
+
+def _sorted_property_items(counter, top_n):
+    return [
+        {'propertyName': property_name, 'value': value, 'count': count}
+        for (property_name, value), count in counter.most_common(top_n)
+    ]
+
+
+def _build_timeline_report(term, pictures, keyword_map, property_map, granularity='month', top_n=8):
+    if granularity not in REPORT_GRANULARITIES:
+        raise ValueError('Invalid granularity')
+
+    timeline_map = defaultdict(lambda: {
+        'matchedImageCount': 0,
+        'titleRelationCounter': Counter(),
+        'keywordRelationCounter': Counter(),
+        'propertyRelationCounter': Counter(),
+        'sampleTitles': [],
+    })
+
+    overall_title_relations = Counter()
+    overall_keyword_relations = Counter()
+    overall_property_relations = Counter()
+    total_images = 0
+    first_date = None
+    last_date = None
+
+    for picture in pictures:
+        picture_date = picture.get('date')
+        if picture_date is None:
+            continue
+
+        bucket_date = _bucket_start(picture_date, granularity)
+        bucket = timeline_map[bucket_date]
+        bucket['matchedImageCount'] += 1
+        total_images += 1
+
+        if first_date is None or picture_date < first_date:
+            first_date = picture_date
+        if last_date is None or picture_date > last_date:
+            last_date = picture_date
+
+        title = picture.get('description') or ''
+        if title and len(bucket['sampleTitles']) < 3:
+            bucket['sampleTitles'].append(title)
+
+        title_tokens = set(_tokenize_title_for_report(title, term))
+        for token in title_tokens:
+            bucket['titleRelationCounter'][token] += 1
+            overall_title_relations[token] += 1
+
+        for keyword in set(keyword_map.get(picture['href'], [])):
+            bucket['keywordRelationCounter'][keyword] += 1
+            overall_keyword_relations[keyword] += 1
+
+        for property_name, value in set(property_map.get(picture['href'], [])):
+            key = (property_name, value)
+            bucket['propertyRelationCounter'][key] += 1
+            overall_property_relations[key] += 1
+
+    timeline = []
+    for bucket_date in sorted(timeline_map.keys()):
+        bucket = timeline_map[bucket_date]
+        matched_count = bucket['matchedImageCount']
+        timeline.append({
+            'period': _bucket_label(bucket_date, granularity),
+            'startDate': bucket_date.isoformat(),
+            'endDate': _bucket_end(bucket_date, granularity).isoformat(),
+            'matchedImageCount': matched_count,
+            'titleRelations': _sorted_counter_items(bucket['titleRelationCounter'], 'word', top_n),
+            'keywordRelations': _sorted_counter_items(bucket['keywordRelationCounter'], 'keyword', top_n),
+            'propertyRelations': _sorted_property_items(bucket['propertyRelationCounter'], top_n),
+            'sampleTitles': bucket['sampleTitles'],
+        })
+
+    return {
+        'word': term,
+        'granularity': granularity,
+        'summary': {
+            'matchedImageCount': total_images,
+            'bucketCount': len(timeline),
+            'firstDate': first_date.isoformat() if first_date else None,
+            'lastDate': last_date.isoformat() if last_date else None,
+            'topTitleRelations': _sorted_counter_items(overall_title_relations, 'word', top_n),
+            'topKeywordRelations': _sorted_counter_items(overall_keyword_relations, 'keyword', top_n),
+            'topPropertyRelations': _sorted_property_items(overall_property_relations, top_n),
+        },
+        'timeline': timeline,
+    }
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def timelineReport(request):
+    body = _extract_body(request)
+    term = _normalize_report_term(body.get('word') or body.get('term'))
+    granularity = (body.get('granularity') or 'month').strip().lower()
+    top_n = body.get('topN', 8)
+
+    if not term:
+        return HttpResponse('Missing word', status=400)
+    if granularity not in REPORT_GRANULARITIES:
+        return HttpResponse('Invalid granularity', status=400)
+
+    try:
+        top_n = max(1, min(int(top_n), 20))
+    except (TypeError, ValueError):
+        return HttpResponse('Invalid topN', status=400)
+
+    pictures_queryset = Pictures.objects.filter(
+        description__contains=term,
+        date__isnull=False,
+        is_collection=False,
+    ).order_by('date', 'href')
+    pictures = list(pictures_queryset.values('href', 'description', 'date'))
+    hrefs = [picture['href'] for picture in pictures]
+
+    keyword_map = defaultdict(list)
+    property_map = defaultdict(list)
+    if hrefs:
+        for keyword in Keywords.objects.filter(href__in=hrefs).values('href', 'keyword'):
+            keyword_map[keyword['href']].append(keyword['keyword'])
+        for prop in Properties.objects.filter(href__in=hrefs).values('href', 'property_name', 'value'):
+            property_map[prop['href']].append((prop['property_name'], prop['value']))
+
+    response = _build_timeline_report(
+        term=term,
+        pictures=pictures,
+        keyword_map=keyword_map,
+        property_map=property_map,
+        granularity=granularity,
+        top_n=top_n,
+    )
     return HttpResponse(json.dumps(response), content_type='application/json')
