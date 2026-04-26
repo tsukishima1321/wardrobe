@@ -2,10 +2,25 @@ import datetime
 
 from django.test import SimpleTestCase
 
-from wardrobe_db.views.stat_views import _build_timeline_report, _tokenize_title_for_report
+from wardrobe_db.views.stat_views import _build_report_match_query, _build_timeline_report, _normalize_match_mode, _tokenize_title_for_report
 
 
 class TimelineReportHelpersTests(SimpleTestCase):
+    def test_normalize_match_mode_defaults_to_title_only(self):
+        self.assertEqual(_normalize_match_mode(None), 'title_only')
+        self.assertEqual(_normalize_match_mode(''), 'title_only')
+        self.assertEqual(_normalize_match_mode('TITLE_KEYWORD_PROPERTY'), 'title_keyword_property')
+
+    def test_build_report_match_query_supports_both_modes(self):
+        title_only_query = _build_report_match_query('春天', 'title_only')
+        combined_query = _build_report_match_query('春天', 'title_keyword_property')
+
+        self.assertEqual(title_only_query.children, [('description__contains', '春天')])
+        self.assertEqual(combined_query.connector, 'OR')
+        self.assertIn(('description__contains', '春天'), combined_query.children)
+        self.assertIn(('keywords__keyword', '春天'), combined_query.children)
+        self.assertIn(('properties__value', '春天'), combined_query.children)
+
     def test_build_timeline_report_groups_by_month(self):
         pictures = [
             {'href': '1.jpg', 'description': '春天的猫在窗边', 'date': datetime.date(2026, 1, 3)},

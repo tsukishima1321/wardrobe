@@ -14,6 +14,7 @@ Wardrobe is a Django backend for a personal image knowledge base system, with th
 - Collection feature: grouped images with generated collage cover images.
 - Diary and message center (including SSE stream for near-real-time notifications).
 - Statistics and monthly report generation.
+- Timeline report generation for a selected word, including time-bucketed picture counts and related title words / keywords / property values.
 - Encrypted PostgreSQL backup and backup record management.
 
 There is a separate frontend repository (see `readme.md`). This repo is backend-only.
@@ -69,7 +70,7 @@ Main endpoint groups:
 - Image detail CRUD: `/image/get/`, `/image/set/`, `/image/delete/`, `/image/new/`, `/text/set/`, blank image workflow.
 - Metadata: keyword/property CRUD, user dictionary CRUD, NLP predict/reload.
 - OCR mission queue: create/reset/list/execute/executeall/clean.
-- Statistics and tips/report generation.
+- Statistics and tips/report generation, including `/report/timeline/` for word-based timeline reports.
 - Backup records and backup file operations.
 - Message center list/read/delete/clear and stream (SSE-like endpoint).
 - Diary CRUD and search.
@@ -182,11 +183,18 @@ Responsibilities:
 
 - Call DB function `updatestat` for aggregate refresh.
 - Serve overall and by-keyword statistics.
+- Build timeline report data for a selected word, with day/month/year buckets and relation summaries.
 - Generate reminder/report messages:
   - Diary inactivity reminders.
   - Backup inactivity warnings.
   - Blank image processing reminders.
   - Monthly report on day 7.
+
+Notable behavior:
+
+- Timeline report matching supports `title_only` and `title_keyword_property` modes.
+- Timeline report currently analyzes `Pictures.description` as the title text source.
+- Timeline report returns structured data only; chart/timeline rendering is expected to be handled by the frontend.
 
 ## 5.8 `wardrobe_db/views/backup_views.py`
 

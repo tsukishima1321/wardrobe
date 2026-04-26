@@ -6,7 +6,7 @@ import re
 
 import jieba
 from django.db import connections
-from django.db.models import Max, Min
+from django.db.models import Max, Min, Q
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -15,6 +15,7 @@ from wardrobe_db.models import Statistics, StatisticsByKeyword, DiaryTexts, Back
 from .common import _extract_body, create_message
 
 REPORT_GRANULARITIES = {'day', 'month', 'year'}
+REPORT_MATCH_MODES = {'title_only', 'title_keyword_property'}
 REPORT_TOKEN_PATTERN = re.compile(r'[\u4e00-\u9fffA-Za-z0-9]+')
 
 def updateStatistics():
@@ -166,6 +167,23 @@ def _normalize_report_term(term):
     return (term or '').strip()
 
 
+def _normalize_match_mode(match_mode):
+    normalized = (match_mode or 'title_only').strip().lower()
+    return normalized or 'title_only'
+
+
+def _build_report_match_query(term, match_mode):
+    if match_mode == 'title_only':
+        return Q(description__contains=term)
+    if match_mode == 'title_keyword_property':
+        return (
+            Q(description__contains=term) |
+            Q(keywords__keyword=term) |
+            Q(properties__value=term)
+        )
+    raise ValueError('Invalid match mode')
+
+
 def _bucket_start(date_value, granularity):
     if granularity == 'year':
         return date_value.replace(month=1, day=1)
@@ -312,12 +330,15 @@ def timelineReport(request):
     body = _extract_body(request)
     term = _normalize_report_term(body.get('word') or body.get('term'))
     granularity = (body.get('granularity') or 'month').strip().lower()
+    match_mode = _normalize_match_mode(body.get('matchMode') or body.get('match_mode'))
     top_n = body.get('topN', 8)
 
     if not term:
         return HttpResponse('Missing word', status=400)
     if granularity not in REPORT_GRANULARITIES:
         return HttpResponse('Invalid granularity', status=400)
+    if match_mode not in REPORT_MATCH_MODES:
+        return HttpResponse('Invalid matchMode', status=400)
 
     try:
         top_n = max(1, min(int(top_n), 20))
@@ -325,10 +346,10 @@ def timelineReport(request):
         return HttpResponse('Invalid topN', status=400)
 
     pictures_queryset = Pictures.objects.filter(
-        description__contains=term,
+        _build_report_match_query(term, match_mode),
         date__isnull=False,
         is_collection=False,
-    ).order_by('date', 'href')
+    ).distinct().order_by('date', 'href')
     pictures = list(pictures_queryset.values('href', 'description', 'date'))
     hrefs = [picture['href'] for picture in pictures]
 
@@ -348,4 +369,5 @@ def timelineReport(request):
         granularity=granularity,
         top_n=top_n,
     )
+    response['matchMode'] = match_mode
     return HttpResponse(json.dumps(response), content_type='application/json')
