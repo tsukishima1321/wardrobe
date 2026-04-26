@@ -330,7 +330,7 @@ def timelineReport(request):
     body = _extract_body(request)
     term = _normalize_report_term(body.get('word') or body.get('term'))
     granularity = (body.get('granularity') or 'month').strip().lower()
-    match_mode = _normalize_match_mode(body.get('matchMode') or body.get('match_mode'))
+    match_mode = _normalize_match_mode(body.get('match_mode'))
     top_n = body.get('topN', 8)
 
     if not term:
@@ -348,7 +348,6 @@ def timelineReport(request):
     pictures_queryset = Pictures.objects.filter(
         _build_report_match_query(term, match_mode),
         date__isnull=False,
-        is_collection=False,
     ).distinct().order_by('date', 'href')
     pictures = list(pictures_queryset.values('href', 'description', 'date'))
     hrefs = [picture['href'] for picture in pictures]
