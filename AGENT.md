@@ -67,6 +67,7 @@ Router rule (`BusinessDBRouter`):
 Main endpoint groups:
 
 - Search: `/search/`, `/searchhint/`, saved search CRUD.
+- Home discovery: `/home/discovery/` homepage card aggregation.
 - Image detail CRUD: `/image/get/`, `/image/set/`, `/image/delete/`, `/image/new/`, `/text/set/`, blank image workflow.
 - Metadata: keyword/property CRUD, user dictionary CRUD, NLP predict/reload.
 - OCR mission queue: create/reset/list/execute/executeall/clean.
@@ -228,6 +229,20 @@ Responsibilities:
 - `_extract_body`: unified JSON/form payload extraction.
 - `create_message`: de-duplicates same text in same day and persists message.
 - `LOCALHOST` from settings used for internal API calls.
+
+## 5.12 `wardrobe_db/views/home_views.py`
+
+Responsibilities:
+
+- Build homepage discovery payload with three modules: on-this-day, memory remix, and digest.
+- On-this-day module: selects pictures/diaries around today's date across past years with a small day window and per-year sampling.
+- Memory remix module: picks an anchor picture, derives a theme (keyword/property/month), then builds related pictures/diaries.
+- Digest module: rolls up counts (pictures, diaries, blanks, unread messages), top keywords, and reminder tips (diary/backup/blank images).
+
+Notable behavior:
+
+- Uses daily RNG seeds to keep results stable per day when enabled.
+- Returns keyword/property metadata for selected pictures to drive UI chips.
 
 ## 6. OCR Subsystem (`wardrobe_db/ocr.py`)
 
