@@ -30,13 +30,9 @@ def _as_json(payload):
     return HttpResponse(json.dumps(payload, ensure_ascii=False), content_type='application/json')
 
 
-def _date_to_mmdd(date_value):
-    return datetime.date(2000, date_value.month, date_value.day)
-
-
 def _day_distance_ignoring_year(date_value, target_date):
-    source = _date_to_mmdd(date_value).timetuple().tm_yday
-    target = _date_to_mmdd(target_date).timetuple().tm_yday
+    source = datetime.date(2000, date_value.month, date_value.day).timetuple().tm_yday
+    target = datetime.date(2000, target_date.month, target_date.day).timetuple().tm_yday
     direct_distance = abs(source - target)
     return min(direct_distance, 366 - direct_distance)
 
@@ -67,64 +63,61 @@ def _serialize_diary(diary):
     }
 
 FIXED_BY_DATE = False
+
+
 def _build_daily_rng(target_date, salt):
     if FIXED_BY_DATE:
         return random.Random(f'{target_date.isoformat()}:{salt}')
-    else:
-        return random.Random()
+    return random.Random()
 
 
-def _fetch_keyword_map(hrefs):
+def _fetch_context_maps(hrefs):
     if not hrefs:
-        return {}
+        return {}, {}
     keyword_map = defaultdict(list)
     for item in Keywords.objects.filter(href_id__in=hrefs).values('href_id', 'keyword'):
         keyword_map[item['href_id']].append(item['keyword'])
-    return dict(keyword_map)
-
-
-def _fetch_property_map(hrefs):
-    if not hrefs:
-        return {}
     property_map = defaultdict(list)
     for item in Properties.objects.filter(href_id__in=hrefs).values('href_id', 'property_name', 'value'):
         property_map[item['href_id']].append((item['property_name'], item['value']))
-    return dict(property_map)
-
-
-def _extract_item_year(item):
-    candidate = item[0] if isinstance(item, (tuple, list)) and item else item
-    date_value = getattr(candidate, 'date', None)
-    return date_value.year if date_value else None
+    return dict(keyword_map), dict(property_map)
 
 
 def _pick_daily_sample(items, limit, rng, sort_key, year_key=None):
     if len(items) <= limit:
         return sorted(items, key=sort_key)
 
-    year_key = year_key or _extract_item_year
+    if year_key is None:
+        def year_key(candidate):
+            item = candidate[0] if isinstance(candidate, (tuple, list)) and candidate else candidate
+            date_value = getattr(item, 'date', None)
+            return date_value.year if date_value else None
     buckets_by_year = defaultdict(list)
-    items_without_year = []
 
     for item in items:
         item_year = year_key(item)
-        if item_year is None:
-            items_without_year.append(item)
-            continue
         buckets_by_year[item_year].append(item)
 
     selected = []
     years = list(buckets_by_year.keys())
     if len(years) >= limit:
         for year in rng.sample(years, limit):
-            selected.append(rng.choice(buckets_by_year[year]))
+            exact_match = any(item[1] == 0 for item in buckets_by_year[year])
+            if exact_match:
+                selected.append(rng.choice(list(item for item in buckets_by_year[year] if item[1] == 0)))
+            else:
+                selected.append(rng.choice(buckets_by_year[year]))
     else:
         for year in years:
-            selected.append(rng.choice(buckets_by_year[year]))
+            exact_match = any(item[1] == 0 for item in buckets_by_year[year])
+            if exact_match:
+                selected.append(rng.choice(list(item for item in buckets_by_year[year] if item[1] == 0)))
+            else:
+                selected.append(rng.choice(buckets_by_year[year]))
 
     remaining_slots = limit - len(selected)
     if remaining_slots > 0:
-        remaining_pool = list(items_without_year)
+        remaining_pool = []
         for year in years:
             remaining_pool.extend(buckets_by_year[year])
 
@@ -139,22 +132,24 @@ def _pick_daily_sample(items, limit, rng, sort_key, year_key=None):
     return sorted(selected, key=sort_key)
 
 
-def _build_on_this_day_title(exact_match, picture_count, diary_count):
+def _build_on_this_day_titles(exact_match, picture_count, diary_count, window_days, years):
     if exact_match:
-        return '那年今日'
-    if picture_count and diary_count:
-        return '前后几天的旧回声'
-    return '今天附近的记忆'
+        title = '那年今日'
+    elif picture_count and diary_count:
+        title = '前后几天的旧回声'
+    else:
+        title = '今天附近的记忆'
 
-
-def _build_on_this_day_subtitle(exact_match, window_days, years):
     if years:
         year_text = f"{min(years)}-{max(years)}" if len(years) > 1 else str(years[0])
     else:
         year_text = '历史'
     if exact_match:
-        return f'从 {year_text} 的今天，打捞出同一天的内容。'
-    return f'精确匹配不足时，自动回看前后 {window_days} 天里的旧内容。'
+        subtitle = f'从 {year_text} 的今天，打捞出同一天的回忆。'
+    else:
+        subtitle = f'从 {year_text} 的今天，回看前后 {window_days} 天里的内容。'
+
+    return title, subtitle
 
 
 def _build_on_this_day_module(today):
@@ -177,9 +172,9 @@ def _build_on_this_day_module(today):
     picture_candidates.sort(key=lambda item: (item[1], -item[0].date.year, item[0].href))
     diary_candidates.sort(key=lambda item: (item[1], -item[0].date.year, item[0].id))
 
-    picture_exact_match = any(distance == 0 for _, distance in picture_candidates)
-    diary_exact_match = any(distance == 0 for _, distance in diary_candidates)
-    exact_match = picture_exact_match or diary_exact_match
+    #picture_exact_match = any(distance == 0 for _, distance in picture_candidates)
+    #diary_exact_match = any(distance == 0 for _, distance in diary_candidates)
+    #exact_match = picture_exact_match
 
     daily_rng = _build_daily_rng(today, 'on-this-day')
     selected_pictures = _pick_daily_sample(
@@ -195,15 +190,23 @@ def _build_on_this_day_module(today):
         lambda item: (item[1], -item[0].date.year, item[0].id),
     )
 
+    exact_match = any(distance == 0 for _, distance in selected_pictures)
+
     selected_picture_objs = [picture for picture, _ in selected_pictures]
-    picture_map = _fetch_keyword_map([picture.href for picture in selected_picture_objs])
-    property_map = _fetch_property_map([picture.href for picture in selected_picture_objs])
+    picture_map, property_map = _fetch_context_maps([picture.href for picture in selected_picture_objs])
     years = sorted({item.date.year for item in selected_picture_objs} | {item.date.year for item, _ in selected_diaries})
+    title, subtitle = _build_on_this_day_titles(
+        exact_match,
+        len(selected_pictures),
+        len(selected_diaries),
+        HOME_DISCOVERY_WINDOW_DAYS,
+        years,
+    )
 
     return {
         'type': 'on_this_day',
-        'title': _build_on_this_day_title(exact_match, len(selected_pictures), len(selected_diaries)),
-        'subtitle': _build_on_this_day_subtitle(exact_match, HOME_DISCOVERY_WINDOW_DAYS, years),
+        'title': title,
+        'subtitle': subtitle,
         'windowDays': HOME_DISCOVERY_WINDOW_DAYS,
         'exactMatch': exact_match,
         'stats': {
@@ -282,11 +285,6 @@ def _pick_anchor_picture(today):
     return rng.choice(pictures)
 
 
-def _load_picture_context(pictures):
-    hrefs = [picture.href for picture in pictures]
-    return _fetch_keyword_map(hrefs), _fetch_property_map(hrefs)
-
-
 def _build_remix_title(theme, anchor, related_pictures):
     if theme['kind'] == 'keyword':
         return f'记忆重组: {theme["label"]}'
@@ -332,7 +330,7 @@ def _build_memory_remix_module(today):
             'theme': None,
         }
 
-    anchor_keywords, anchor_properties = _load_picture_context([anchor])
+    anchor_keywords, anchor_properties = _fetch_context_maps([anchor.href])
     theme_candidates = _build_theme_candidates(anchor, anchor_keywords, anchor_properties)
     if not theme_candidates:
         theme_candidates = [{'kind': 'month', 'label': f'{anchor.date.month}月', 'relatedCount': 1}] if anchor.date else []
@@ -343,7 +341,7 @@ def _build_memory_remix_module(today):
     theme = None
     if theme_candidates:
         theme_rng = _build_daily_rng(today, 'memory-remix-theme')
-        if theme_rng.random() < 0.5:
+        if theme_rng.random() < 0.2:
             theme = theme_candidates[0]
         else:
             theme = theme_rng.choice(theme_candidates)
@@ -369,7 +367,7 @@ def _build_memory_remix_module(today):
 
     related_pictures = list(queryset.exclude(href=anchor.href).distinct().order_by('-date', 'href')[:HOME_REMIX_PICTURE_LIMIT - 1])
     all_pictures = [anchor] + related_pictures
-    keyword_map, property_map = _load_picture_context(all_pictures)
+    keyword_map, property_map = _fetch_context_maps([picture.href for picture in all_pictures])
     diaries = _build_related_diaries(theme, anchor)
 
     return {
