@@ -25,11 +25,6 @@ HOME_HERO_DIARY_LIMIT = 2
 HOME_REMIX_PICTURE_LIMIT = 4
 HOME_REMIX_DIARY_LIMIT = 2
 
-
-def _as_json(payload):
-    return HttpResponse(json.dumps(payload, ensure_ascii=False), content_type='application/json')
-
-
 def _day_distance_ignoring_year(date_value, target_date):
     source = datetime.date(2000, date_value.month, date_value.day).timetuple().tm_yday
     target = datetime.date(2000, target_date.month, target_date.day).timetuple().tm_yday
@@ -51,8 +46,20 @@ def _serialize_picture(picture, keyword_map=None, property_map=None):
     }
 
 
-def _serialize_diary(diary):
-    preview = (diary.text or '').strip()
+def _serialize_diary(diary, theme_label=None):
+    preview = ''
+    if theme_label:
+        index = diary.text.find(theme_label)
+        if index != -1:
+            start = max(0, index - 40)
+            end = min(len(diary.text), index + len(theme_label) + 40)
+            preview = diary.text[start:end]
+            if start > 0:
+                preview = '...' + preview
+            if end < len(diary.text):
+                preview = preview + '...'
+    if not preview:
+        preview = diary.text.strip().replace('\n', ' ')
     if len(preview) > 140:
         preview = preview[:137] + '...'
     return {
@@ -63,7 +70,6 @@ def _serialize_diary(diary):
     }
 
 FIXED_BY_DATE = False
-
 
 def _build_daily_rng(target_date, salt):
     if FIXED_BY_DATE:
@@ -378,7 +384,7 @@ def _build_memory_remix_module(today):
         'theme': theme,
         'anchor': _serialize_picture(anchor, keyword_map, property_map),
         'pictures': [_serialize_picture(picture, keyword_map, property_map) for picture in all_pictures],
-        'diaries': [_serialize_diary(diary) for diary in diaries],
+        'diaries': [_serialize_diary(diary, theme['label']) for diary in diaries],
     }
 
 
@@ -479,4 +485,4 @@ def homeDiscovery(request):
             'digest': _build_digest_module(today),
         },
     }
-    return _as_json(response)
+    return HttpResponse(json.dumps(response, ensure_ascii=False), content_type='application/json')

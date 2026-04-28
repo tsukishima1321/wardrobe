@@ -12,16 +12,11 @@ from PIL import Image, ImageDraw
 from .common import LOCALHOST, _extract_body
 from wardrobe_db.nlp.model import nlp_engine
 
-# ---------------------------------------------------------------------------
-# Collection thumbnail generator – magazine-style collage
-# ---------------------------------------------------------------------------
-
 _CANVAS = 600          # Final composite is _CANVAS x _CANVAS pixels
 _GAP = 4               # Gap between cells (pixels)
 _RADIUS = 12           # Corner radius for the overall composite
 _BG = (245, 245, 245)  # Light-grey background visible through gaps
 _MAX_IMAGES = 7        # Use up to this many images
-
 
 def _center_crop_fill(img, target_w, target_h):
     """Resize *img* so it fully covers (target_w, target_h), then center-crop."""
