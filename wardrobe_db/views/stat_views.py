@@ -3,11 +3,12 @@ import calendar
 import datetime
 import json
 import re
+from typing import Any, Counter as CounterType, DefaultDict, Dict, List, Optional, Tuple
 
 import jieba
 from django.db import connections
 from django.db.models import Max, Min, Q
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
@@ -18,14 +19,14 @@ REPORT_GRANULARITIES = {'day', 'month', 'year'}
 REPORT_MATCH_MODES = {'title_only', 'title_keyword_property'}
 REPORT_TOKEN_PATTERN = re.compile(r'[\u4e00-\u9fffA-Za-z0-9]+')
 
-def updateStatistics():
+def updateStatistics() -> None:
     connection = connections['business']
     with connection.cursor() as cursor:
         cursor.callproc('updatestat')
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def generateTips(request):
+def generateTips(request: HttpRequest) -> HttpResponse:
     # 提醒用户写日记和备份
     lastDiaryDate = DiaryTexts.objects.aggregate(max_date=Max('date'))['max_date']
     if lastDiaryDate:
@@ -150,7 +151,7 @@ def generateTips(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def getStatistics(request):
+def getStatistics(request: HttpRequest) -> HttpResponse:
     updateStatistics()
     statistics = Statistics.objects.get()
     overall = {'totalAmount': statistics.totalamount, 'lastYearAmount': statistics.lastyearamount, 'lastMonthAmount': statistics.lastmonthamount}
@@ -163,16 +164,16 @@ def getStatistics(request):
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 
-def _normalize_report_term(term):
+def _normalize_report_term(term: Optional[str]) -> str:
     return (term or '').strip()
 
 
-def _normalize_match_mode(match_mode):
+def _normalize_match_mode(match_mode: Optional[str]) -> str:
     normalized = (match_mode or 'title_only').strip().lower()
     return normalized or 'title_only'
 
 
-def _build_report_match_query(term, match_mode):
+def _build_report_match_query(term: str, match_mode: str) -> Q:
     if match_mode == 'title_only':
         return Q(description__contains=term)
     if match_mode == 'title_keyword_property':
@@ -184,7 +185,7 @@ def _build_report_match_query(term, match_mode):
     raise ValueError('Invalid match mode')
 
 
-def _bucket_start(date_value, granularity):
+def _bucket_start(date_value: datetime.date, granularity: str) -> datetime.date:
     if granularity == 'year':
         return date_value.replace(month=1, day=1)
     if granularity == 'month':
@@ -192,7 +193,7 @@ def _bucket_start(date_value, granularity):
     return date_value
 
 
-def _bucket_label(date_value, granularity):
+def _bucket_label(date_value: datetime.date, granularity: str) -> str:
     if granularity == 'year':
         return date_value.strftime('%Y')
     if granularity == 'month':
@@ -200,7 +201,7 @@ def _bucket_label(date_value, granularity):
     return date_value.strftime('%Y-%m-%d')
 
 
-def _bucket_end(date_value, granularity):
+def _bucket_end(date_value: datetime.date, granularity: str) -> datetime.date:
     if granularity == 'year':
         return date_value.replace(month=12, day=31)
     if granularity == 'month':
@@ -209,7 +210,7 @@ def _bucket_end(date_value, granularity):
     return date_value
 
 
-def _tokenize_title_for_report(text, target_word):
+def _tokenize_title_for_report(text: Optional[str], target_word: str) -> List[str]:
     if not text:
         return []
 
@@ -227,21 +228,28 @@ def _tokenize_title_for_report(text, target_word):
     return tokens
 
 
-def _sorted_counter_items(counter, key_name, top_n):
+def _sorted_counter_items(counter: CounterType[str], key_name: str, top_n: int) -> List[Dict[str, Any]]:
     return [
         {key_name: item_key, 'count': count}
         for item_key, count in counter.most_common(top_n)
     ]
 
 
-def _sorted_property_items(counter, top_n):
+def _sorted_property_items(counter: CounterType[Tuple[str, str]], top_n: int) -> List[Dict[str, Any]]:
     return [
         {'propertyName': property_name, 'value': value, 'count': count}
         for (property_name, value), count in counter.most_common(top_n)
     ]
 
 
-def _build_timeline_report(term, pictures, keyword_map, property_map, granularity='month', top_n=8):
+def _build_timeline_report(
+    term: str,
+    pictures: List[Dict[str, Any]],
+    keyword_map: DefaultDict[str, List[str]],
+    property_map: DefaultDict[str, List[Tuple[str, str]]],
+    granularity: str = 'month',
+    top_n: int = 8,
+) -> Dict[str, Any]:
     if granularity not in REPORT_GRANULARITIES:
         raise ValueError('Invalid granularity')
 
@@ -326,7 +334,7 @@ def _build_timeline_report(term, pictures, keyword_map, property_map, granularit
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def timelineReport(request):
+def timelineReport(request: HttpRequest) -> HttpResponse:
     body = _extract_body(request)
     term = _normalize_report_term(body.get('word') or body.get('term'))
     granularity = (body.get('granularity') or 'month').strip().lower()

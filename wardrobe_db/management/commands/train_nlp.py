@@ -1,13 +1,13 @@
 import json
 import os
+from typing import Any
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from wardrobe_db.nlp.model import WardrobeNLP
 
 class Command(BaseCommand):
-    help = 'Train the NLP model based on exported training data'
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         data_path = os.path.join(settings.BASE_DIR, 'training_data.json')
         
         if not os.path.exists(data_path):
@@ -22,7 +22,6 @@ class Command(BaseCommand):
             return
 
         nlp = WardrobeNLP()
-        # Ensure user dict is loaded
         nlp.load_user_dict()
         
         self.stdout.write(f"Start training with {len(data)} samples...")

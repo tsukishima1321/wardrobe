@@ -1,4 +1,5 @@
-from django.http import HttpResponse
+from typing import Dict, Any, Optional
+from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Messages, CollectionItems
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -10,15 +11,15 @@ from .common import logger, create_message, _extract_body
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def getOcrMission(request):
+def getOcrMission(request: HttpRequest) -> HttpResponse:
     missions = OcrMission.objects.all()
     missionList = [{'src': m.href.href, 'status': m.status} for m in missions]
     return HttpResponse(json.dumps(missionList), content_type='application/json')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def newOcrMission(request):
-    body = _extract_body(request)
+def newOcrMission(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = body.get('src', '')
     
     if not Pictures.objects.filter(href=src):
@@ -31,7 +32,6 @@ def newOcrMission(request):
         else:
             mission.status = 'waiting'
             mission.save()
-            # Reset the OCR result if the mission is reset
             logger.info(f'OCR mission for {src} has been reset.')
         return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
 
@@ -42,8 +42,8 @@ def newOcrMission(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def resetOcrMission(request):
-    body = _extract_body(request)
+def resetOcrMission(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = body.get('src', '')
     
     mission = OcrMission.objects.filter(href=Pictures.objects.get(href=src))
@@ -59,14 +59,14 @@ def resetOcrMission(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def cleanOcrMission(request):
+def cleanOcrMission(request: HttpRequest) -> HttpResponse:
     missions = OcrMission.objects.filter(status='finished')
     count = missions.count()
     for mission in missions:
         mission.delete()
     return HttpResponse(json.dumps({'status': 'Success', 'deleted_count': count}), content_type='application/json')
 
-def performOcr(src:str):
+def performOcr(src: str) -> None:
     picture = Pictures.objects.get(href=src)
     mission = OcrMission.objects.filter(href=picture)[0]
 
@@ -92,7 +92,7 @@ def performOcr(src:str):
     title = picture.description
     create_message(level='info', message_type='OCR', text=f'Text extraction for "{title}" has been completed.', link='/detail/' + src)
 
-def performAllOcr():
+def performAllOcr() -> None:
     missions = OcrMission.objects.filter(status='waiting')
     for mission in missions:
         mission.status = 'processing'
@@ -102,8 +102,8 @@ def performAllOcr():
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def excuteOcrMission(request):
-    body = _extract_body(request)
+def excuteOcrMission(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = body.get('src', '')
     
     mission = OcrMission.objects.filter(href=Pictures.objects.get(href=src))
@@ -123,7 +123,7 @@ def excuteOcrMission(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def excuteAllOcrMission(request):
+def excuteAllOcrMission(request: HttpRequest) -> HttpResponse:
     missions = OcrMission.objects.filter(status='waiting')
     if not missions:
         return HttpResponse('No waiting missions', status=400)

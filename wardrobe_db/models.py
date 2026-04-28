@@ -1,14 +1,8 @@
-# This is an auto-generated Django model module.
-# You'll have to do the following manually to clean this up:
-#   * Rearrange models' order
-#   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = True` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
+from django.db.models import Model
 
 
-class Pictures(models.Model):
+class Pictures(Model):
     href = models.CharField(primary_key=True, max_length=100)
     description = models.CharField(max_length=100, db_collation='utf8mb3_general_ci', blank=True, null=True)
     date = models.DateField(blank=True, null=True)
@@ -19,7 +13,7 @@ class Pictures(models.Model):
         db_table = 'pictures'
 
 
-class CollectionItems(models.Model):
+class CollectionItems(Model):
     id = models.AutoField(primary_key=True)
     collection = models.ForeignKey(Pictures, on_delete=models.CASCADE, db_column='collection_href', related_name='collection_items')
     image_href = models.CharField(max_length=200)
@@ -32,7 +26,7 @@ class CollectionItems(models.Model):
         ordering = ['-liked', 'sort_order']
 
 
-class PicturesOcr(models.Model):
+class PicturesOcr(Model):
     href = models.OneToOneField(Pictures, models.DO_NOTHING, db_column='href', primary_key=True)
     ocr_result = models.TextField()
 
@@ -40,7 +34,8 @@ class PicturesOcr(models.Model):
         managed = True
         db_table = 'pictures_ocr'
 
-class Keywords(models.Model):
+
+class Keywords(Model):
     href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
     keyword = models.CharField(max_length=50)
 
@@ -48,7 +43,8 @@ class Keywords(models.Model):
         managed = True
         db_table = 'keywords'
 
-class Properties(models.Model):
+
+class Properties(Model):
     href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
     property_name = models.CharField(max_length=50)
     value = models.CharField(max_length=100)
@@ -58,7 +54,7 @@ class Properties(models.Model):
         db_table = 'properties'
 
 
-class Statistics(models.Model):
+class Statistics(Model):
     totalamount = models.IntegerField()
     lastyearamount = models.IntegerField()
     lastmonthamount = models.IntegerField()
@@ -68,7 +64,7 @@ class Statistics(models.Model):
         db_table = 'statistics'
 
 
-class StatisticsByKeyword(models.Model):
+class StatisticsByKeyword(Model):
     keyword = models.CharField(unique=True, max_length=50, primary_key=True)
     totalamount = models.IntegerField()
     lastyearamount = models.IntegerField()
@@ -78,7 +74,8 @@ class StatisticsByKeyword(models.Model):
         managed = True
         db_table = 'statistics_by_keyword'
 
-class OcrMission(models.Model):
+
+class OcrMission(Model):
     id = models.AutoField(primary_key=True)
     href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
     status = models.CharField(max_length=20)
@@ -87,7 +84,8 @@ class OcrMission(models.Model):
         managed = True
         db_table = 'ocr_mission'
 
-class SavedSearch(models.Model):
+
+class SavedSearch(Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     searchparams = models.TextField()
@@ -96,7 +94,8 @@ class SavedSearch(models.Model):
         managed = True
         db_table = 'saved_search_filter'
 
-class BackupRecords(models.Model):
+
+class BackupRecords(Model):
     timestamp = models.CharField(primary_key=True)
     comment = models.CharField(max_length=200, blank=True, null=True)
 
@@ -104,7 +103,8 @@ class BackupRecords(models.Model):
         managed = True
         db_table = 'backup_records'
 
-class Messages(models.Model):
+
+class Messages(Model):
     id = models.AutoField(primary_key=True)
     message_type = models.CharField(max_length=50)
     text = models.TextField()
@@ -117,7 +117,8 @@ class Messages(models.Model):
         managed = True
         db_table = 'messages'
 
-class DiaryTexts(models.Model):
+
+class DiaryTexts(Model):
     date = models.DateField()
     text = models.TextField()
 
@@ -125,7 +126,8 @@ class DiaryTexts(models.Model):
         managed = True
         db_table = 'diary_texts'
 
-class BlankPictures(models.Model):
+
+class BlankPictures(Model):
     href = models.CharField(primary_key=True, max_length=100)
 
     class Meta:
@@ -133,7 +135,7 @@ class BlankPictures(models.Model):
         db_table = 'blank_pictures'
 
 
-class UserDictionary(models.Model):
+class UserDictionary(Model):
     id = models.AutoField(primary_key=True)
     word = models.CharField(max_length=50, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

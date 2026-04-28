@@ -1,10 +1,11 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from wardrobe_db.models import DiaryTexts
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
 from datetime import datetime
 
+from typing import Dict, Any
 from django.conf import settings
 from .common import _extract_body
 LOCALHOST = settings.LOCALHOST
@@ -15,12 +16,9 @@ logger = logging.getLogger('db')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def search(request):
-    """
-    Search for diary texts based on the provided parameters.
-    """
+def search(request: HttpRequest) -> HttpResponse:
     try:
-        body = _extract_body(request)
+        body: Dict[str, Any] = _extract_body(request)
         searchKey = body.get('searchKey', '')
         dateFrom = body.get('dateFrom', '')
         dateTo = body.get('dateTo', '')
@@ -31,28 +29,23 @@ def search(request):
         
         logger.info(f"Search parameters: searchKey={searchKey}, dateFrom={dateFrom}, dateTo={dateTo}")
         
-        # Start with all diary texts
         texts = DiaryTexts.objects.all()
         
-        # Filter by search key if provided
         if searchKey:
             keys = searchKey.split(' ')
             for k in keys:
                 texts = texts.filter(text__contains=k)
         
-        # Filter by date range if provided
         if dateFrom:
             texts = texts.filter(date__gte=dateFrom)
         if dateTo:
             texts = texts.filter(date__lte=dateTo)
         
-        # Apply ordering
         if order == 'asc':
             texts = texts.order_by(orderBy)
         else:
             texts = texts.order_by('-' + orderBy)
         
-        # Pagination
         totalPage = (len(texts) + pageSize - 1) // pageSize
         totalItems = len(texts)
         if page > totalPage and totalPage > 0:
@@ -60,7 +53,6 @@ def search(request):
         
         texts = texts[(page - 1) * pageSize:page * pageSize]
         
-        # Format response
         textList = []
         for text in texts:
             textList.append({
@@ -79,15 +71,11 @@ def search(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def getDiaryTexts(request):
-    """
-    Get diary texts. If ID is provided, return specific diary text. Otherwise, return all with optional filtering.
-    """
+def getDiaryTexts(request: HttpRequest) -> HttpResponse:
     try:
-        body = _extract_body(request)
+        body: Dict[str, Any] = _extract_body(request)
         text_id = body.get('id', '')
         
-        # If ID is provided, return specific diary text
         if text_id:
             try:
                 text_id = int(text_id)
@@ -103,7 +91,6 @@ def getDiaryTexts(request):
             except DiaryTexts.DoesNotExist:
                 return HttpResponse('Diary text not found', status=404)
         else:
-            # If no ID, return all diary texts
             texts = DiaryTexts.objects.all()
             textList = []
             for text in texts:
@@ -119,25 +106,20 @@ def getDiaryTexts(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def newDiaryText(request):
-    """
-    Create a new diary text entry.
-    """
+def newDiaryText(request: HttpRequest) -> HttpResponse:
     try:
-        body = _extract_body(request)
+        body: Dict[str, Any] = _extract_body(request)
         date = body.get('date', '')
         text = body.get('text', '')
         
         if not date or not text:
             return HttpResponse('Date and text are required', status=400)
         
-        # Validate date format
         try:
             datetime.strptime(date, '%Y-%m-%d')
         except ValueError:
             return HttpResponse('Invalid date format. Use YYYY-MM-DD', status=400)
         
-        # Create new diary text
         diary_text = DiaryTexts(date=date, text=text)
         diary_text.save()
         
@@ -151,12 +133,9 @@ def newDiaryText(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteDiaryText(request):
-    """
-    Delete a diary text entry.
-    """
+def deleteDiaryText(request: HttpRequest) -> HttpResponse:
     try:
-        body = _extract_body(request)
+        body: Dict[str, Any] = _extract_body(request)
         text_id = body.get('id', '')
         
         if not text_id:
@@ -167,7 +146,6 @@ def deleteDiaryText(request):
         except ValueError:
             return HttpResponse('Invalid ID format', status=400)
         
-        # Find and delete the diary text
         diary_text = DiaryTexts.objects.filter(id=text_id)
         if not diary_text:
             return HttpResponse('Diary text not found', status=404)
@@ -184,12 +162,9 @@ def deleteDiaryText(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def editDiaryText(request):
-    """
-    Edit an existing diary text entry.
-    """
+def editDiaryText(request: HttpRequest) -> HttpResponse:
     try:
-        body = _extract_body(request)
+        body: Dict[str, Any] = _extract_body(request)
         text_id = body.get('id', '')
         date = body.get('date', '')
         text = body.get('text', '')
@@ -202,13 +177,11 @@ def editDiaryText(request):
         except ValueError:
             return HttpResponse('Invalid ID format', status=400)
         
-        # Find the diary text
         try:
             diary_text = DiaryTexts.objects.get(id=text_id)
         except DiaryTexts.DoesNotExist:
             return HttpResponse('Diary text not found', status=404)
         
-        # Update fields if provided
         if date:
             try:
                 datetime.strptime(date, '%Y-%m-%d')

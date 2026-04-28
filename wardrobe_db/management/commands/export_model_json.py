@@ -1,14 +1,12 @@
 import json
 import pickle
 import os
+from typing import Any
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from collections import defaultdict, Counter
 
-def convert_to_dict(obj):
-    """
-    Recursively convert defaultdict and Counter to standard dicts for JSON serialization.
-    """
+def convert_to_dict(obj: Any) -> Any:
     if isinstance(obj, (defaultdict, Counter)):
         return {k: convert_to_dict(v) for k, v in obj.items()}
     elif isinstance(obj, dict):
@@ -19,17 +17,11 @@ def convert_to_dict(obj):
         return obj
 
 class Command(BaseCommand):
-    help = 'Export the NLP model pickle file to JSON for inspection'
 
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--output',
-            type=str,
-            default=os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.json'),
-            help='Output JSON file path'
-        )
+    def add_arguments(self, parser: Any) -> None:
+        parser.add_argument('--output', type=str, default=os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.json'))
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         pkl_path = os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.pkl')
         json_path = options['output']
 

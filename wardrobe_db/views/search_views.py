@@ -1,4 +1,5 @@
-from django.http import HttpResponse
+from typing import Dict, Any
+from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, Keywords, Properties, SavedSearch
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,8 +9,8 @@ from .common import _extract_body
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def search(request):
-    body = _extract_body(request)
+def search(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     searchKey = body.get('searchKey', '')
     byName = body.get('byName', True)
     byFullText = body.get('byFullText', False)
@@ -84,7 +85,7 @@ def search(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def searchHint(request):
+def searchHint(request: HttpRequest) -> HttpResponse:
     keywords = (
         Keywords.objects.values('keyword')
         .annotate(count=Count('keyword'))
@@ -102,8 +103,8 @@ def searchHint(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def saveSearchFilter(request):
-    body = _extract_body(request)
+def saveSearchFilter(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     name = (body.get('name') or '').strip()
     searchparams = body.get('searchparams', {})
     if not name or not searchparams:
@@ -115,15 +116,15 @@ def saveSearchFilter(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def listSavedSearchFilters(request):
+def listSavedSearchFilters(request: HttpRequest) -> HttpResponse:
     saved_searches = SavedSearch.objects.all()
     data = [{'id': s.id, 'name': s.name} for s in saved_searches]
     return HttpResponse(json.dumps(data), content_type='application/json')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def getSavedSearchFilter(request):
-    body = _extract_body(request)
+def getSavedSearchFilter(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     search_id = body.get('id', None)
     if search_id is None:
         return HttpResponse('Missing id', status=400)
@@ -135,8 +136,8 @@ def getSavedSearchFilter(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteSavedSearch(request):
-    body = _extract_body(request)
+def deleteSavedSearch(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     search_id = body.get('id', None)
     if search_id is None:
         return HttpResponse('Missing id', status=400)

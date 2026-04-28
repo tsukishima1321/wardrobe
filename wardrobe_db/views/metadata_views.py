@@ -1,4 +1,5 @@
-from django.http import HttpResponse
+from typing import Dict, Any
+from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, Keywords, Properties, UserDictionary
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -7,18 +8,10 @@ from .common import _extract_body
 from wardrobe_db.nlp.model import nlp_engine
 
 @api_view(['POST'])
-@permission_classes([AllowAny]) # Allow localhost or internal calls without token
-def reloadModel(request):
-    """
-    Force reload the NLP model from disk.
-    This is usually called by management command after retraining.
-    """
-    # Simple security check: only allow localhost or internal IPs
+@permission_classes([AllowAny])
+def reloadModel(request: HttpRequest) -> HttpResponse:
     client_ip = request.META.get('REMOTE_ADDR')
     if client_ip not in ['127.0.0.1', 'localhost', '::1']:
-        # If behind proxy (like nginx), check X-Real-IP if configured trustworthily
-        # For now, simplistic check. 
-        # Better: use a shared secret in headers
         pass
 
     try:
@@ -33,11 +26,8 @@ def reloadModel(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def predictMetadata(request):
-    """
-    Predict keywords and properties based on natural language description
-    """
-    body = _extract_body(request)
+def predictMetadata(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     description = (body.get('description') or '').strip()
     
     if not description:
@@ -45,7 +35,6 @@ def predictMetadata(request):
     
     try:
         if not nlp_engine.vocab_loaded:
-            # Try reloading if not ready (e.g. freshly restarted worker)
             nlp_engine.load()
             
         result = nlp_engine.predict(description)
@@ -55,8 +44,8 @@ def predictMetadata(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def listKeywords(request):
-    body = _extract_body(request)
+def listKeywords(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = (body.get('src') or '').strip()
     keywords = Keywords.objects.all()
     if src:
@@ -66,8 +55,8 @@ def listKeywords(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def createKeyword(request):
-    body = _extract_body(request)
+def createKeyword(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = (body.get('src') or '').strip()
     keyword = (body.get('keyword') or '').strip()
     if not src or not keyword:
@@ -79,7 +68,6 @@ def createKeyword(request):
         return HttpResponse('Keyword already exists for picture', status=400)
     Keywords.objects.create(href=picture, keyword=keyword)
     
-    # Update NLP model incrementally
     if picture.description:
         nlp_engine.update(picture.description, keywords=[keyword], mode='add')
         
@@ -88,8 +76,8 @@ def createKeyword(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteKeyword(request):
-    body = _extract_body(request)
+def deleteKeyword(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = (body.get('src') or '').strip()
     keyword = (body.get('keyword') or '').strip()
     if not src or not keyword:
@@ -101,7 +89,6 @@ def deleteKeyword(request):
     if not deleted_count:
         return HttpResponse('Keyword does not exist', status=404)
         
-    # Update NLP model incrementally
     if picture and picture.description:
         nlp_engine.update(picture.description, keywords=[keyword], mode='remove')
 
@@ -110,8 +97,8 @@ def deleteKeyword(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def listProperties(request):
-    body = _extract_body(request)
+def listProperties(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = (body.get('src') or '').strip()
     props = Properties.objects.all()
     if src:
@@ -122,8 +109,8 @@ def listProperties(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def createProperty(request):
-    body = _extract_body(request)
+def createProperty(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = (body.get('src') or '').strip()
     name = (body.get('name') or body.get('property_name') or '').strip()
     value = (body.get('value') or '').strip()
@@ -136,7 +123,6 @@ def createProperty(request):
         return HttpResponse('Property already exists for picture', status=400)
     Properties.objects.create(href=picture, property_name=name, value=value)
     
-    # Update NLP model incrementally
     if picture.description:
         nlp_engine.update(picture.description, properties={name: [value]}, mode='add')
         
@@ -145,8 +131,8 @@ def createProperty(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteProperty(request):
-    body = _extract_body(request)
+def deleteProperty(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     src = (body.get('src') or '').strip()
     name = (body.get('name') or body.get('property_name') or '').strip()
     value = (body.get('value') or '').strip()
@@ -159,7 +145,6 @@ def deleteProperty(request):
     if not deleted_count:
         return HttpResponse('Property does not exist', status=404)
         
-    # Update NLP model incrementally
     if picture and picture.description:
         nlp_engine.update(picture.description, properties={name: [value]}, mode='remove')
 
@@ -168,15 +153,15 @@ def deleteProperty(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def listUserDictionary(request):
+def listUserDictionary(request: HttpRequest) -> HttpResponse:
     words = UserDictionary.objects.all().order_by('word').values_list('word', flat=True)
     return HttpResponse(json.dumps(list(words), ensure_ascii=False), content_type='application/json')
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def createUserDictionaryWord(request):
-    body = _extract_body(request)
+def createUserDictionaryWord(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     word = (body.get('word') or '').strip()
     if not word:
         return HttpResponse('Missing word', status=400)
@@ -193,8 +178,8 @@ def createUserDictionaryWord(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteUserDictionaryWord(request):
-    body = _extract_body(request)
+def deleteUserDictionaryWord(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     word = (body.get('word') or '').strip()
     if not word:
         return HttpResponse('Missing word', status=400)

@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import BackupRecords
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -12,7 +12,7 @@ BACKUP_PATH = settings.BACKUP_PATH
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def list_backups(request):
+def list_backups(request: HttpRequest) -> HttpResponse:
     backups = BackupRecords.objects.all().order_by('-timestamp')
     backup_list = [
         {
@@ -25,7 +25,7 @@ def list_backups(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def create_backup(request):
+def create_backup(request: HttpRequest) -> HttpResponse:
     try:
         result = subprocess.run([settings.BACKUP_SCRIPT_PATH], check=True, text=True, capture_output=True)
         timestamp = result.stdout.strip()
@@ -37,7 +37,7 @@ def create_backup(request):
 
 @api_view(['GET'])
 @permission_classes([])
-def download_backup(request):
+def download_backup(request: HttpRequest) -> HttpResponse:
     timestamp = request.GET.get('timestamp')
     token = request.GET.get('token')
 
@@ -67,7 +67,7 @@ def download_backup(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def delete_backup(request):
+def delete_backup(request: HttpRequest) -> HttpResponse:
     timestamp = request.data.get('timestamp')
     if not timestamp:
         return HttpResponse(json.dumps({'status': 'error', 'message': 'Timestamp is required'}), content_type="application/json", status=400)

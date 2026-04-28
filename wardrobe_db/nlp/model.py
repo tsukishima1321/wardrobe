@@ -3,6 +3,7 @@ import pickle
 import os
 import logging
 from collections import defaultdict, Counter
+from typing import Dict, Any, Optional, List, Set, Counter as CounterType, DefaultDict, Tuple, Union
 from django.conf import settings
 from wardrobe_db.models import Keywords, Properties, UserDictionary
 
@@ -13,24 +14,20 @@ def nested_defaultdict():
     return defaultdict(Counter)
 
 class WardrobeNLP:
-    def __init__(self):
-        self.keyword_probs = defaultdict(Counter) # {word: {keyword: count}}
-        self.property_probs = defaultdict(nested_defaultdict) # {prop_name: {word: {value: count}}}
-        self.keyword_totals = Counter()
-        self.property_totals = defaultdict(Counter)
-        self.word_totals = Counter()
-        self.allowed_single_char_words = set()
+    def __init__(self) -> None:
+        self.keyword_probs: DefaultDict[str, CounterType] = defaultdict(Counter)
+        self.property_probs: DefaultDict[str, DefaultDict[str, CounterType]] = defaultdict(nested_defaultdict)
+        self.keyword_totals: CounterType = Counter()
+        self.property_totals: DefaultDict[str, CounterType] = defaultdict(Counter)
+        self.word_totals: CounterType = Counter()
+        self.allowed_single_char_words: Set[str] = set()
+        self.model_path: str = os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.pkl')
+        self.vocab_loaded: bool = False
 
-        self.model_path = os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'model.pkl')
-        self.vocab_loaded = False
-
-    def load_user_dict(self):
-        """
-        从数据库加载自定义词典，增强分词效果
-        """
+    def load_user_dict(self) -> None:
         if self.vocab_loaded:
             return
-            
+
         print("Loading user dictionary for segmentation...")
         keywords = Keywords.objects.values_list('keyword', flat=True).distinct()
         properties = Properties.objects.values_list('value', flat=True).distinct()
@@ -47,25 +44,21 @@ class WardrobeNLP:
         print(f"Loaded {count} words into user dictionary.")
         self.vocab_loaded = True
 
-    def refresh_user_dict(self):
+    def refresh_user_dict(self) -> None:
         self.vocab_loaded = False
         self.load_user_dict()
 
-    def _is_model_token(self, word):
+    def _is_model_token(self, word: str) -> bool:
         if not word:
             return False
         if len(word) > 1:
             return True
         return word in self.allowed_single_char_words
 
-    def _tokenize_for_model(self, text):
+    def _tokenize_for_model(self, text: str) -> Set[str]:
         return {word for word in jieba.lcut(text) if self._is_model_token(word)}
 
-    def train(self, data):
-        """
-        训练模型
-        data: list of dict {'text': str, 'keywords': list, 'properties': dict}
-        """
+    def train(self, data: List[Dict[str, Any]]) -> None:
         self.keyword_probs = defaultdict(Counter)
         self.property_probs = defaultdict(nested_defaultdict)
         self.keyword_totals = Counter()
@@ -99,11 +92,7 @@ class WardrobeNLP:
                         self.property_probs[name][word][value] += 1
                         
 
-    def update(self, text, keywords=None, properties=None, mode='add', update_word_counts=False):
-        """
-        实时更新模型的单条记录
-        mode: 'add' | 'remove'
-        """
+    def update(self, text: str, keywords: Optional[List[str]] = None, properties: Optional[Dict[str, Any]] = None, mode: str = 'add', update_word_counts: bool = False) -> None:
         if not text:
             return
 
@@ -116,11 +105,11 @@ class WardrobeNLP:
                 if self.word_totals[word] <= 0:
                     del self.word_totals[word]
 
-        # 更新 Keywords
+
         if keywords:
             for kw in keywords:
                 self.keyword_totals[kw] += factor
-                # 防止计数变为负数（理论上数据一致时不应该发生，但为了安全）
+
                 if self.keyword_totals[kw] < 0: self.keyword_totals[kw] = 0
                 
                 for word in words:
@@ -129,12 +118,12 @@ class WardrobeNLP:
                         if kw in self.keyword_probs[word]:
                             del self.keyword_probs[word][kw]
         
-                # 如果某个词的映射现在为空，清理掉
+
                 for word in words:
                     if word in self.keyword_probs and not self.keyword_probs[word]:
                         del self.keyword_probs[word]
 
-        # 更新 Properties
+
         if properties:
             for name, values_list in properties.items():
                 if not isinstance(values_list, list):
@@ -150,18 +139,15 @@ class WardrobeNLP:
                             if value in self.property_probs[name][word]:
                                 del self.property_probs[name][word][value]
                     
-                    # 清理空的映射
+
                     for word in words:
                         if word in self.property_probs[name] and not self.property_probs[name][word]:
                             del self.property_probs[name][word]
         
-        # 实时更新不需要立即保存到磁盘，可以依赖定期任务或手动保存，避免IO瓶颈
-        # self.save()
 
-    def predict(self, text, threshold=0.5):
-        """
-        预测
-        """ 
+
+    def predict(self, text: str, threshold: float = 0.5) -> Dict[str, Any]:
+
 
         if not text:
             return {'keywords': [], 'properties': {}}
@@ -174,7 +160,7 @@ class WardrobeNLP:
         kw_scores = defaultdict(float)
         for word in words:
             if word in self.keyword_probs:
-                # P(Kw | Word) = Count(Word & Kw) / Count(Word)，在此基础上除以 P(Kw) 来降低高频关键词的影响，同时计算时加上平滑项避免低频关键词过度影响结果
+
                 word_total = self.word_totals[word]
                 if word_total > 0:
                     for kw, count in self.keyword_probs[word].items():
@@ -189,7 +175,7 @@ class WardrobeNLP:
 
         final_keywords = [k for k, s in sorted_kws if s > threshold_score][:4]
 
-        final_props = list() # [(prop_name, value, score)]
+        final_props = list()
         for prop_name, word_map in self.property_probs.items():
             prop_scores = defaultdict(float)
             for word in words:
@@ -217,7 +203,7 @@ class WardrobeNLP:
             'properties': formatted_props
         }
 
-    def save(self):
+    def save(self) -> None:
         try:
             with open(self.model_path, 'wb') as f:
                 pickle.dump({
@@ -231,7 +217,7 @@ class WardrobeNLP:
         except Exception as e:
             print(f"Error saving model: {e}")
 
-    def load(self):
+    def load(self) -> bool:
         if os.path.exists(self.model_path):
             try:
                 with open(self.model_path, 'rb') as f:
@@ -242,11 +228,10 @@ class WardrobeNLP:
                     self.property_totals = data.get('property_totals', defaultdict(Counter))
                     self.word_totals = data.get('word_totals', Counter())
                 print("Model loaded successfully.")
-                self.load_user_dict() # 加载完模型顺便加载词典
+                self.load_user_dict()
                 return True
             except Exception as e:
                 print(f"Error loading model: {e}")
         return False
 
-# 单例
 nlp_engine = WardrobeNLP()

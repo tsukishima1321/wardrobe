@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
 import os
 import sys
+from typing import NoReturn
 
 
-def main():
-    """Run administrative tasks."""
+def main() -> None:
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wardrobe.settings')
     try:
         from django.core.management import execute_from_command_line

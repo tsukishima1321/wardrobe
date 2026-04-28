@@ -1,9 +1,10 @@
-from django.urls import path
+from typing import List
+from django.urls import URLPattern, path
 from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views, diary_views, collection_views, home_views
 
-app_name = 'wardrobe_db'
+app_name: str = 'wardrobe_db'
 
-urlpatterns = [
+urlpatterns: List[URLPattern] = [
     path('search/', search_views.search, name='search'),
     path('searchhint/', search_views.searchHint, name='searchHint'),
     path('random/', image_views.random, name='random'),
@@ -49,7 +50,7 @@ urlpatterns = [
     path('message/clear_read/', message_views.clearMessage, name='clear_read'),
     path('message/stream/', message_views.streamMessages, name='streamMessages'),
     path('diary/search/', diary_views.search, name='search'),
-    path('diary/get/',diary_views.getDiaryTexts, name='getDiaryTexts'),
+    path('diary/get/', diary_views.getDiaryTexts, name='getDiaryTexts'),
     path('diary/new/', diary_views.newDiaryText, name='newDiaryText'),
     path('diary/delete/', diary_views.deleteDiaryText, name='deleteDiaryText'),
     path('diary/edit/', diary_views.editDiaryText, name='editDiaryText'),

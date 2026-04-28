@@ -1,17 +1,15 @@
 import os
+from typing import Any
 from django.core.management.base import BaseCommand
 from wardrobe_db.models import Pictures, Keywords, Properties
 
 class Command(BaseCommand):
-    help = 'Export description, keywords, and properties for ML training'
 
-    def handle(self, *args, **options):
-
+    def handle(self, *args: Any, **options: Any) -> None:
         items = Pictures.objects.exclude(description__isnull=True).exclude(description__exact='')
         
         data = []
         for item in items:
- 
             keywords = list(Keywords.objects.filter(href=item).values_list('keyword', flat=True))
             
             props = Properties.objects.filter(href=item)
@@ -24,8 +22,8 @@ class Command(BaseCommand):
             data.append({
                 'href': item.href,
                 'text': item.description,
-                'keywords': keywords, # List of strings
-                'properties': prop_dict # Dictionary with list values
+                'keywords': keywords,
+                'properties': prop_dict
             })
 
         self.stdout.write(f"Exported {len(data)} items.")

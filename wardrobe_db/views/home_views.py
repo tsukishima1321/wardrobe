@@ -1,9 +1,10 @@
 import datetime
 import random
 from collections import Counter, defaultdict
+from typing import Dict, Any, Optional, List, Tuple, Counter as CounterType, DefaultDict, Set, Callable
 
 from django.db.models import Max
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
@@ -25,14 +26,14 @@ HOME_HERO_DIARY_LIMIT = 2
 HOME_REMIX_PICTURE_LIMIT = 4
 HOME_REMIX_DIARY_LIMIT = 2
 
-def _day_distance_ignoring_year(date_value, target_date):
+def _day_distance_ignoring_year(date_value: datetime.date, target_date: datetime.date) -> int:
     source = datetime.date(2000, date_value.month, date_value.day).timetuple().tm_yday
     target = datetime.date(2000, target_date.month, target_date.day).timetuple().tm_yday
     direct_distance = abs(source - target)
     return min(direct_distance, 366 - direct_distance)
 
 
-def _serialize_picture(picture, keyword_map=None, property_map=None):
+def _serialize_picture(picture: Pictures, keyword_map: Optional[Dict[str, List[str]]] = None, property_map: Optional[Dict[str, List[Tuple[str, str]]]] = None) -> Dict[str, Any]:
     return {
         'src': picture.href,
         'title': picture.description or '',
@@ -46,7 +47,7 @@ def _serialize_picture(picture, keyword_map=None, property_map=None):
     }
 
 
-def _serialize_diary(diary, theme_label=None):
+def _serialize_diary(diary: DiaryTexts, theme_label: Optional[str] = None) -> Dict[str, Any]:
     preview = ''
     if theme_label:
         index = diary.text.find(theme_label)
@@ -71,13 +72,13 @@ def _serialize_diary(diary, theme_label=None):
 
 FIXED_BY_DATE = False
 
-def _build_daily_rng(target_date, salt):
+def _build_daily_rng(target_date: datetime.date, salt: str) -> random.Random:
     if FIXED_BY_DATE:
         return random.Random(f'{target_date.isoformat()}:{salt}')
     return random.Random()
 
 
-def _fetch_context_maps(hrefs):
+def _fetch_context_maps(hrefs: List[str]) -> Tuple[Dict[str, List[str]], Dict[str, List[Tuple[str, str]]]]:
     if not hrefs:
         return {}, {}
     keyword_map = defaultdict(list)
@@ -89,7 +90,7 @@ def _fetch_context_maps(hrefs):
     return dict(keyword_map), dict(property_map)
 
 
-def _pick_daily_sample(items, limit, rng, sort_key, year_key=None):
+def _pick_daily_sample(items: List[Any], limit: int, rng: random.Random, sort_key: Callable[[Any], Any], year_key: Optional[Callable[[Any], Any]] = None) -> List[Any]:
     if len(items) <= limit:
         return sorted(items, key=sort_key)
 
@@ -138,7 +139,7 @@ def _pick_daily_sample(items, limit, rng, sort_key, year_key=None):
     return sorted(selected, key=sort_key)
 
 
-def _build_on_this_day_titles(exact_match, picture_count, diary_count, window_days, years):
+def _build_on_this_day_titles(exact_match: bool, picture_count: int, diary_count: int, window_days: int, years: List[int]) -> Tuple[str, str]:
     if exact_match:
         title = '那年今日'
     elif picture_count and diary_count:
@@ -158,7 +159,7 @@ def _build_on_this_day_titles(exact_match, picture_count, diary_count, window_da
     return title, subtitle
 
 
-def _build_on_this_day_module(today):
+def _build_on_this_day_module(today: datetime.date) -> Dict[str, Any]:
     picture_candidates = []
     for picture in Pictures.objects.filter(date__isnull=False):
         if picture.date.year == today.year:
@@ -177,10 +178,6 @@ def _build_on_this_day_module(today):
 
     picture_candidates.sort(key=lambda item: (item[1], -item[0].date.year, item[0].href))
     diary_candidates.sort(key=lambda item: (item[1], -item[0].date.year, item[0].id))
-
-    #picture_exact_match = any(distance == 0 for _, distance in picture_candidates)
-    #diary_exact_match = any(distance == 0 for _, distance in diary_candidates)
-    #exact_match = picture_exact_match
 
     daily_rng = _build_daily_rng(today, 'on-this-day')
     selected_pictures = _pick_daily_sample(
@@ -238,7 +235,7 @@ def _build_on_this_day_module(today):
     }
 
 
-def _build_theme_candidates(anchor, keyword_map, property_map):
+def _build_theme_candidates(anchor: Pictures, keyword_map: Dict[str, List[str]], property_map: Dict[str, List[Tuple[str, str]]]) -> List[Dict[str, Any]]:
     themes = []
     for keyword in keyword_map.get(anchor.href, []):
         related_count = Pictures.objects.filter(
@@ -278,7 +275,7 @@ def _build_theme_candidates(anchor, keyword_map, property_map):
     return themes
 
 
-def _pick_anchor_picture(today):
+def _pick_anchor_picture(today: datetime.date) -> Optional[Pictures]:
     pictures = list(
         Pictures.objects.filter(date__isnull=False)
         .exclude(description__isnull=True)
@@ -291,7 +288,7 @@ def _pick_anchor_picture(today):
     return rng.choice(pictures)
 
 
-def _build_remix_title(theme, anchor, related_pictures):
+def _build_remix_title(theme: Dict[str, Any], anchor: Pictures, related_pictures: List[Pictures]) -> str:
     if theme['kind'] == 'keyword':
         return f'记忆重组: {theme["label"]}'
     if theme['kind'] == 'property':
@@ -301,7 +298,7 @@ def _build_remix_title(theme, anchor, related_pictures):
     return '记忆重组'
 
 
-def _build_remix_subtitle(theme, anchor, related_pictures):
+def _build_remix_subtitle(theme: Dict[str, Any], anchor: Pictures, related_pictures: List[Pictures]) -> str:
     years = sorted({picture.date.year for picture in related_pictures if picture.date} | ({anchor.date.year} if anchor.date else set()))
     year_text = f'{years[0]}-{years[-1]}' if len(years) > 1 else (str(years[0]) if years else '过去几年')
     if theme['kind'] == 'keyword':
@@ -311,7 +308,7 @@ def _build_remix_subtitle(theme, anchor, related_pictures):
     return f'从不同年份的 {theme["label"]} 里，抽出几张彼此呼应的照片。'
 
 
-def _build_related_diaries(theme, anchor):
+def _build_related_diaries(theme: Dict[str, Any], anchor: Pictures) -> List[DiaryTexts]:
     if theme['kind'] in {'keyword', 'property'}:
         diaries = list(DiaryTexts.objects.filter(text__contains=theme['label']).order_by('-date')[:HOME_REMIX_DIARY_LIMIT])
         if diaries:
@@ -322,7 +319,7 @@ def _build_related_diaries(theme, anchor):
     return diaries
 
 
-def _build_memory_remix_module(today):
+def _build_memory_remix_module(today: datetime.date) -> Dict[str, Any]:
     anchor = _pick_anchor_picture(today)
     if not anchor:
         return {
@@ -342,8 +339,6 @@ def _build_memory_remix_module(today):
         theme_candidates = [{'kind': 'month', 'label': f'{anchor.date.month}月', 'relatedCount': 1}] if anchor.date else []
 
     theme_candidates.sort(key=lambda item: (-item['relatedCount'], item['kind'], item['label']))
-    # Use a daily RNG to introduce controlled randomness when picking the theme:
-    # 50% chance to pick the top candidate, otherwise pick a random candidate from the list.
     theme = None
     if theme_candidates:
         theme_rng = _build_daily_rng(today, 'memory-remix-theme')
@@ -388,14 +383,14 @@ def _build_memory_remix_module(today):
     }
 
 
-def _parse_backup_timestamp(timestamp):
+def _parse_backup_timestamp(timestamp: Optional[str]) -> Optional[datetime.datetime]:
     try:
         return datetime.datetime.strptime(timestamp, '%Y%m%d%H%M%S')
     except (TypeError, ValueError):
         return None
 
 
-def _build_digest_module(today):
+def _build_digest_module(today: datetime.date) -> Dict[str, Any]:
     total_pictures = Pictures.objects.filter(is_collection=False).count()
     pictures_this_month = Pictures.objects.filter(
         date__year=today.year,
@@ -475,7 +470,7 @@ def _build_digest_module(today):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def homeDiscovery(request):
+def homeDiscovery(request: HttpRequest) -> HttpResponse:
     today = datetime.date.today()
     response = {
         'generatedAt': today.strftime('%Y-%m-%d'),

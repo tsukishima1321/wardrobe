@@ -1,4 +1,5 @@
-from django.http import HttpResponse
+from typing import Dict, Any
+from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, PicturesOcr, OcrMission, Keywords, Properties, BlankPictures, CollectionItems
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -11,9 +12,9 @@ from wardrobe_db.nlp.model import nlp_engine
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def getImageDetail(request):
-    body = _extract_body(request)
-    src = body.get('src', '')
+def getImageDetail(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    src: str = body.get('src', '')
     picture = Pictures.objects.get(href=src)
     ocr_result = PicturesOcr.objects.filter(href=src)
     if ocr_result:
@@ -28,11 +29,11 @@ def getImageDetail(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def setImageDetail(request):
-    body = _extract_body(request)
-    src = body.get('src', '')
-    title = body.get('title', '')
-    date = body.get('date', '')
+def setImageDetail(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    src: str = body.get('src', '')
+    title: str = body.get('title', '')
+    date: str = body.get('date', '')
     picture = Pictures.objects.get(href=src)
     if not picture:
         return HttpResponse('Invalid picture', status=400)
@@ -45,9 +46,9 @@ def setImageDetail(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteImage(request):
-    body = _extract_body(request)
-    src = body.get('src', '')
+def deleteImage(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    src: str = body.get('src', '')
     picture = Pictures.objects.filter(href=src).first()
     if not picture:
         return HttpResponse('Invalid picture', status=400)
@@ -66,10 +67,10 @@ def deleteImage(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def setImageText(request):
-    body = _extract_body(request)
-    src = body.get('src', '')
-    text = body.get('text', '')
+def setImageText(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    src: str = body.get('src', '')
+    text: str = body.get('text', '')
     ocr_result = PicturesOcr.objects.filter(href=src).first()
     if ocr_result:
         ocr_result.ocr_result = text
@@ -80,9 +81,9 @@ def setImageText(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def random(request):
-    keywordFilter = request.query_params.get('keyword', '')
-    includeCollections = request.query_params.get('includeCollections', 'false').lower() == 'true'
+def random(request: HttpRequest) -> HttpResponse:
+    keywordFilter: str = request.query_params.get('keyword', '')
+    includeCollections: bool = request.query_params.get('includeCollections', 'false').lower() == 'true'
     if keywordFilter:
         pictures = Pictures.objects.filter(keywords__keyword=keywordFilter)
     else:
@@ -95,16 +96,16 @@ def random(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def newImage(request):
+def newImage(request: HttpRequest) -> HttpResponse:
     url = LOCALHOST + '/api/upload/'
     headers = {'Authorization': request.headers['Authorization']}
     res = requests.post(url, files=request.FILES, headers=headers)
     if res.status_code == 200:
         data = json.loads(res.text)
-        src = data['md5']
-        title:str = request.POST.get('title', '')
-        date:str = request.POST.get('date', '')
-        unprocessed:str = request.POST.get('unprocessed', 'false')
+        src: str = data['md5']
+        title: str = request.POST.get('title', '')
+        date: str = request.POST.get('date', '')
+        unprocessed: str = request.POST.get('unprocessed', 'false')
         if not title or not date or unprocessed.lower() == 'true':
             if not title:
                 title = ''
@@ -132,38 +133,36 @@ def newImage(request):
                 keyword = Keywords(href=Pictures.objects.get(href=src), keyword=kw)
                 keyword.save()
         properties = request.POST.get('properties', '')
-        prop_update_dict = {}
+        prop_update_dict: Dict[str, Any] = {}
         if properties:
             propertyList = json.loads(properties)
             for prop in propertyList:
                 property = Properties(href=Pictures.objects.get(href=src), property_name=prop['name'], value=prop['value'])
                 property.save()
-                # Aggregate for NLP update
                 if prop['name'] not in prop_update_dict:
                     prop_update_dict[prop['name']] = []
                 prop_update_dict[prop['name']].append(prop['value'])
-        
-        # Update NLP model
+
         if title:
             kw_list = json.loads(keywords) if keywords else []
             nlp_engine.update(title, keywords=kw_list, properties=prop_update_dict, mode='add', update_word_counts=True)
-            
+
         return HttpResponse(json.dumps({'status':'Success','md5':src}), content_type='application/json')
     else:
         return HttpResponse(res.text, status=400)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def listBlankImages(request):
+def listBlankImages(request: HttpRequest) -> HttpResponse:
     blanks = BlankPictures.objects.all()
     blank_list = [blank.href for blank in blanks]
     return HttpResponse(json.dumps(blank_list), content_type='application/json')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def reprocessImage(request):
-    body = _extract_body(request)
-    src = (body.get('src') or '').strip()
+def reprocessImage(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    src: str = (body.get('src') or '').strip()
     if not src:
         return HttpResponse('Missing src', status=400)
     picture = BlankPictures.objects.filter(href=src).first()

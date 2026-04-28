@@ -1,4 +1,5 @@
-from django.http import HttpResponse
+from typing import Dict, Any, Optional, List, Tuple
+from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, CollectionItems, Keywords, Properties, PicturesOcr
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -18,8 +19,7 @@ _RADIUS = 12           # Corner radius for the overall composite
 _BG = (245, 245, 245)  # Light-grey background visible through gaps
 _MAX_IMAGES = 7        # Use up to this many images
 
-def _center_crop_fill(img, target_w, target_h):
-    """Resize *img* so it fully covers (target_w, target_h), then center-crop."""
+def _center_crop_fill(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
     src_ratio = img.width / img.height
     dst_ratio = target_w / target_h
     if src_ratio > dst_ratio:
@@ -35,8 +35,7 @@ def _center_crop_fill(img, target_w, target_h):
     return img.crop((left, top, left + target_w, top + target_h))
 
 
-def _round_corners(img, radius):
-    """Apply rounded corners to an RGBA or RGB image, returning RGBA."""
+def _round_corners(img: Image.Image, radius: int) -> Image.Image:
     if img.mode != 'RGBA':
         img = img.convert('RGBA')
     mask = Image.new('L', img.size, 0)
@@ -46,8 +45,7 @@ def _round_corners(img, radius):
     return img
 
 
-def _classify_orientation(images):
-    """Return 'portrait', 'landscape', or 'mixed'."""
+def _classify_orientation(images: List[Image.Image]) -> str:
     portraits = sum(1 for im in images if im.height > im.width)
     landscapes = sum(1 for im in images if im.width > im.height)
     total = len(images)
@@ -58,12 +56,7 @@ def _classify_orientation(images):
     return 'mixed'
 
 
-def _layout_cells(count, orientation):
-    """Return a list of (x, y, w, h) tuples describing cell positions.
-
-    All coordinates are in a normalised 0-based pixel grid of size
-    (_CANVAS x _CANVAS).  Gaps are baked in.
-    """
+def _layout_cells(count: int, orientation: str) -> List[Tuple[int, int, int, int]]:
     S = _CANVAS
     G = _GAP
     half = (S - G) // 2
@@ -195,16 +188,7 @@ def _layout_cells(count, orientation):
     return cells
 
 
-def _generate_collection_thumbnail(collection_href):
-    """Generate a magazine-style composite image for a collection.
-
-    Strategy:
-    1. Prefer liked items; fall back to all items.
-    2. Classify dominant orientation (portrait / landscape / mixed).
-    3. Pick a layout template that flatters the orientation.
-    4. Center-crop each image into its cell for a clean, gapless look.
-    5. Apply rounded corners to the final composite.
-    """
+def _generate_collection_thumbnail(collection_href: str) -> None:
     liked_items = CollectionItems.objects.filter(
         collection_id=collection_href, liked=True
     ).order_by('sort_order')[:_MAX_IMAGES]
@@ -263,8 +247,8 @@ def _generate_collection_thumbnail(collection_href):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def createCollection(request):
-    body = _extract_body(request)
+def createCollection(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     title = (body.get('title') or '').strip()
     date = body.get('date') or None
     keywords = body.get('keywords', [])
@@ -296,7 +280,7 @@ def createCollection(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def addCollectionItem(request):
+def addCollectionItem(request: HttpRequest) -> HttpResponse:
     collection_href = request.POST.get('src', '').strip()
     if not collection_href:
         return HttpResponse('Missing collection src', status=400)
@@ -342,8 +326,8 @@ def addCollectionItem(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def likeCollectionItem(request):
-    body = _extract_body(request)
+def likeCollectionItem(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     collection_href = (body.get('src') or '').strip()
     image_href = (body.get('image_href') or '').strip()
     liked = body.get('liked', True)
@@ -369,8 +353,8 @@ def likeCollectionItem(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def removeCollectionItem(request):
-    body = _extract_body(request)
+def removeCollectionItem(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     collection_href = (body.get('src') or '').strip()
     image_href = (body.get('image_href') or '').strip()
 
@@ -403,8 +387,8 @@ def removeCollectionItem(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def deleteCollection(request):
-    body = _extract_body(request)
+def deleteCollection(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     collection_href = (body.get('src') or '').strip()
 
     if not collection_href:
@@ -443,8 +427,8 @@ def deleteCollection(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def listCollectionItems(request):
-    body = _extract_body(request)
+def listCollectionItems(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
     collection_href = (body.get('src') or '').strip()
 
     if not collection_href:
