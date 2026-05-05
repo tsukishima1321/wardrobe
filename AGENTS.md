@@ -75,7 +75,7 @@ Main endpoint groups:
 - Backup records and backup file operations.
 - Message center list/read/delete/clear and stream (SSE-like endpoint).
 - Diary CRUD and search.
-- Collection CRUD and like/list operations.
+- Collection CRUD, like/list, and merge-into-collection (`/collection/merge/`).
 
 ## 4. Core Data Model (`wardrobe_db/models.py`)
 
@@ -93,7 +93,8 @@ Key business entities:
 - `DiaryTexts`: diary records.
 - `BlankPictures`: images marked as unprocessed.
 - `UserDictionary`: custom segmentation dictionary for NLP.
-- `Statistics` + `StatisticsByKeyword`: summary and keyword dimensions.
+- `Statistics` + `StatisticsByKeyword`: summary and keyword dimensions (compact: collections count as 1).
+- `StatisticsExpanded` + `StatisticsByKeywordExpanded`: parallel expanded statistics (collection items counted individually).
 
 ## 5. Module Responsibilities
 
@@ -169,6 +170,7 @@ Responsibilities:
 
 - Collection entity creation/deletion.
 - Add/remove/list/like collection items.
+- Merge multiple standalone images into a single collection (`mergeIntoCollection`).
 - Generate collection composite cover image (`_generate_collection_thumbnail`) with layout templates.
 - Async thumbnail regeneration using Python threads.
 - Cleanup of orphaned files when removing items/collections.
@@ -177,22 +179,28 @@ Notable behavior:
 
 - Collection cover images are stored in main image storage path as regular image files.
 - Thumbnail cache for collection cover is invalidated when content changes.
+- `mergeIntoCollection` takes title/date from the first image, merges OCR text (`\n`-joined), keywords (unique set), and properties (deduplicated by `(name, value)`), then deletes the original `Pictures` records (files remain as `CollectionItems` references). NLP model is updated incrementally (`remove` old + `add` merged).
 
 ## 5.7 `wardrobe_db/views/stat_views.py`
 
 Responsibilities:
 
-- Call DB function `updatestat` for aggregate refresh.
-- Serve overall and by-keyword statistics.
+- Call DB functions `updatestat` and `updatestat_expanded` for aggregate refresh.
+- Serve overall and by-keyword statistics in two parallel sets:
+  - **compact** (`overall` / `types`): collections count as 1 item.
+  - **expanded** (`overallExpanded` / `typesExpanded`): collection items counted individually.
 - Build timeline report data for a selected word, with day/month/year buckets and relation summaries.
 - Generate reminder/report messages:
   - Diary inactivity reminders.
   - Backup inactivity warnings.
   - Blank image processing reminders.
-  - Monthly report on day 7.
+  - Monthly report on day 7 (now includes expanded picture count).
 
 Notable behavior:
 
+- `updateStatistics()` calls both `updatestat()` and `updatestat_expanded()` PostgreSQL functions.
+- `getStatistics` returns both `overall`/`types` (compact) and `overallExpanded`/`typesExpanded` (expanded).
+- Monthly report picture count line now shows both compact and expanded numbers.
 - Timeline report matching supports `title_only` and `title_keyword_property` modes.
 - Timeline report currently analyzes `Pictures.description` as the title text source.
 - Timeline report returns structured data only; chart/timeline rendering is expected to be handled by the frontend.
@@ -237,7 +245,7 @@ Responsibilities:
 - Build homepage discovery payload with three modules: on-this-day, memory remix, and digest.
 - On-this-day module: selects pictures/diaries around today's date across past years with a small day window and per-year sampling.
 - Memory remix module: picks an anchor picture, derives a theme (keyword/property/month), then builds related pictures/diaries.
-- Digest module: rolls up counts (pictures, diaries, blanks, unread messages), top keywords, and reminder tips (diary/backup/blank images).
+- Digest module: rolls up counts (pictures, diaries, blanks, unread messages), top keywords, and reminder tips (diary/backup/blank images). Picture counts include both compact and expanded versions (`totalPictures`/`totalPicturesExpanded`, `picturesThisMonth`/`picturesThisMonthExpanded`).
 
 Notable behavior:
 
@@ -293,7 +301,7 @@ Root scripts:
 
 SQL utility:
 
-- `updatestat.sql`: PostgreSQL function definition used by `/statistics/` and report generation.
+- `updatestat.sql`: PostgreSQL function definitions (`updatestat` and `updatestat_expanded`) plus `CREATE TABLE IF NOT EXISTS` for `statistics_expanded` and `statistics_by_keyword_expanded` tables. Used by `/statistics/` and report generation.
 
 Nginx reference:
 
@@ -347,7 +355,17 @@ Security/infra notes:
 3. Composite image is regenerated.
 4. Cached thumbnail file is deleted to force lazy re-gen.
 
-### 11.4 NLP retrain pipeline
+### 11.4 Merge images into collection
+
+1. Client calls `/collection/merge/` with a list of non-collection `href`s.
+2. New collection `Pictures` record created (title/date from the first image).
+3. `CollectionItems` created for each source image in order.
+4. OCR text (`\n`-joined), keywords (unique set), properties (deduped `(name, value)`) copied to collection.
+5. NLP model updated: each source image removed, merged collection added.
+6. Source `Pictures` records (with associated OCR/keywords/properties) deleted; image files stay on disk.
+7. Background thread regenerates collection cover thumbnail.
+
+### 11.5 NLP retrain pipeline
 
 1. Run `python manage.py retrain_and_reload`.
 2. Command builds training corpus from DB.
@@ -356,6 +374,7 @@ Security/infra notes:
 
 ## 12. Extension Guide for Future Agents
 
+Use `conda activate django` if tests or management commands need to be run. If database models are changed, don't create and apply migrations, create pgsql migration scripts manually and ask user to run it.
 When adding features, prefer placing logic by bounded context:
 
 - Image storage/auth/JWT plumbing -> `wardrobe_image`.

@@ -12,7 +12,7 @@ from django.http import HttpRequest, HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
-from wardrobe_db.models import Statistics, StatisticsByKeyword, DiaryTexts, BackupRecords, Pictures, Keywords, Messages, Properties, BlankPictures
+from wardrobe_db.models import Statistics, StatisticsByKeyword, StatisticsExpanded, StatisticsByKeywordExpanded, DiaryTexts, BackupRecords, Pictures, CollectionItems, Keywords, Messages, Properties, BlankPictures
 from .common import _extract_body, create_message
 
 REPORT_GRANULARITIES = {'day', 'month', 'year'}
@@ -23,6 +23,7 @@ def updateStatistics() -> None:
     connection = connections['business']
     with connection.cursor() as cursor:
         cursor.callproc('updatestat')
+        cursor.callproc('updatestat_expanded')
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -95,8 +96,10 @@ def generateTips(request: HttpRequest) -> HttpResponse:
             # Pictures summary
             pictures = Pictures.objects.filter(date__year=year, date__month=month)
             total_pictures = pictures.count()
+            expanded_pictures = pictures.filter(is_collection=False).count()
+            expanded_pictures += CollectionItems.objects.filter(collection__is_collection=True, collection__date__year=year, collection__date__month=month).count()
             report_lines.append(f"### Pictures\n")
-            report_lines.append(f"You added **{total_pictures}** new pictures in {year}-{month:02d}.\n\n")
+            report_lines.append(f"You added **{total_pictures}** new pictures in {year}-{month:02d} (with collections expanded: **{expanded_pictures}**).\n\n")
             
             # Keywords summary
             keyword_counts = {}
@@ -160,7 +163,15 @@ def getStatistics(request: HttpRequest) -> HttpResponse:
     for s in statisticsByKeyword:
         typename = s.keyword
         typeList.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
-    response = {'overall': overall, 'types': typeList}
+
+    statisticsExpanded = StatisticsExpanded.objects.get()
+    overallExpanded = {'totalAmount': statisticsExpanded.totalamount, 'lastYearAmount': statisticsExpanded.lastyearamount, 'lastMonthAmount': statisticsExpanded.lastmonthamount}
+    statisticsByKeywordExpanded = StatisticsByKeywordExpanded.objects.all()
+    typeListExpanded = []
+    for s in statisticsByKeywordExpanded:
+        typename = s.keyword
+        typeListExpanded.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
+    response = {'overall': overall, 'types': typeList, 'overallExpanded': overallExpanded, 'typesExpanded': typeListExpanded}
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 

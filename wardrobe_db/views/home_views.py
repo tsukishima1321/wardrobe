@@ -12,6 +12,7 @@ import json
 from wardrobe_db.models import (
     BackupRecords,
     BlankPictures,
+    CollectionItems,
     DiaryTexts,
     Keywords,
     Messages,
@@ -392,10 +393,23 @@ def _parse_backup_timestamp(timestamp: Optional[str]) -> Optional[datetime.datet
 
 def _build_digest_module(today: datetime.date) -> Dict[str, Any]:
     total_pictures = Pictures.objects.filter(is_collection=False).count()
+    total_pictures_expanded = total_pictures + CollectionItems.objects.filter(collection__is_collection=True).count()
     pictures_this_month = Pictures.objects.filter(
         date__year=today.year,
         date__month=today.month,
     ).count()
+    pictures_this_month_expanded = (
+        Pictures.objects.filter(
+            is_collection=False,
+            date__year=today.year,
+            date__month=today.month,
+        ).count()
+        + CollectionItems.objects.filter(
+            collection__is_collection=True,
+            collection__date__year=today.year,
+            collection__date__month=today.month,
+        ).count()
+    )
     diaries_this_month = DiaryTexts.objects.filter(date__year=today.year, date__month=today.month).count()
     last_diary_date = DiaryTexts.objects.aggregate(max_date=Max('date'))['max_date']
     days_since_last_diary = (today - last_diary_date).days if last_diary_date else None
@@ -455,7 +469,9 @@ def _build_digest_module(today: datetime.date) -> Dict[str, Any]:
         'subtitle': '',
         'stats': {
             'totalPictures': total_pictures,
+            'totalPicturesExpanded': total_pictures_expanded,
             'picturesThisMonth': pictures_this_month,
+            'picturesThisMonthExpanded': pictures_this_month_expanded,
             'diariesThisMonth': diaries_this_month,
             'daysSinceLastDiary': days_since_last_diary,
             'blankPictures': blank_count,

@@ -60,4 +60,5 @@ urlpatterns: List[URLPattern] = [
     path('collection/delete/', collection_views.deleteCollection, name='deleteCollection'),
     path('collection/list/', collection_views.listCollectionItems, name='listCollectionItems'),
     path('collection/like/', collection_views.likeCollectionItem, name='likeCollectionItem'),
+    path('collection/merge/', collection_views.mergeIntoCollection, name='mergeIntoCollection'),
 ]

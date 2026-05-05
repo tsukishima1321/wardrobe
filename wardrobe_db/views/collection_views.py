@@ -442,3 +442,93 @@ def listCollectionItems(request: HttpRequest) -> HttpResponse:
     data = [{'image_href': item.image_href, 'sort_order': item.sort_order, 'liked': item.liked} for item in items]
 
     return HttpResponse(json.dumps(data), content_type='application/json')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mergeIntoCollection(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    src_hrefs = body.get('src', [])
+
+    if not src_hrefs or len(src_hrefs) < 2:
+        return HttpResponse('At least two image hrefs are required', status=400)
+
+    pictures = []
+    for href in src_hrefs:
+        pic = Pictures.objects.filter(href=href).first()
+        if not pic:
+            return HttpResponse(f'Image not found: {href}', status=404)
+        if pic.is_collection:
+            return HttpResponse(f'Image is already a collection: {href}', status=400)
+        pictures.append(pic)
+
+    first = pictures[0]
+    title = first.description or ''
+    date = first.date
+
+    href = 'col_' + uuid.uuid4().hex[:8] + '.jpg'
+    while Pictures.objects.filter(href=href).exists():
+        href = 'col_' + uuid.uuid4().hex[:8] + '.jpg'
+
+    ocr_texts = []
+    for pic in pictures:
+        ocr = PicturesOcr.objects.filter(href=pic.href).first()
+        if ocr and ocr.ocr_result:
+            ocr_texts.append(ocr.ocr_result)
+    merged_ocr = '\n'.join(ocr_texts)
+
+    all_keywords = set()
+    for pic in pictures:
+        kws = Keywords.objects.filter(href=pic.href).values_list('keyword', flat=True)
+        all_keywords.update(kws)
+
+    seen_props: set = set()
+    all_properties = []
+    prop_update_dict: Dict[str, Any] = {}
+    for pic in pictures:
+        props = Properties.objects.filter(href=pic.href)
+        for prop in props:
+            key = (prop.property_name, prop.value)
+            if key not in seen_props:
+                seen_props.add(key)
+                all_properties.append({'name': prop.property_name, 'value': prop.value})
+            if prop.property_name not in prop_update_dict:
+                prop_update_dict[prop.property_name] = []
+            prop_update_dict[prop.property_name].append(prop.value)
+
+    collection = Pictures(href=href, description=title, date=date, is_collection=True)
+    collection.save()
+
+    for i, pic in enumerate(pictures):
+        CollectionItems.objects.create(collection=collection, image_href=pic.href, sort_order=i + 1)
+
+    if merged_ocr:
+        PicturesOcr.objects.create(href=collection, ocr_result=merged_ocr)
+
+    for kw in all_keywords:
+        Keywords.objects.create(href=collection, keyword=kw)
+
+    for prop in all_properties:
+        Properties.objects.create(href=collection, property_name=prop['name'], value=prop['value'])
+
+    for pic in pictures:
+        old_title = pic.description or ''
+        old_kws = list(Keywords.objects.filter(href=pic.href).values_list('keyword', flat=True))
+        old_props: Dict[str, Any] = {}
+        for prop in Properties.objects.filter(href=pic.href):
+            if prop.property_name not in old_props:
+                old_props[prop.property_name] = []
+            old_props[prop.property_name].append(prop.value)
+        if old_title:
+            nlp_engine.update(old_title, keywords=old_kws, properties=old_props, mode='remove', update_word_counts=True)
+        PicturesOcr.objects.filter(href=pic.href).delete()
+        Keywords.objects.filter(href=pic.href).delete()
+        Properties.objects.filter(href=pic.href).delete()
+        pic.delete()
+
+    if title:
+        nlp_engine.update(title, keywords=list(all_keywords), properties=prop_update_dict, mode='add', update_word_counts=True)
+
+    threading.Thread(target=_generate_collection_thumbnail, args=(href,), daemon=True).start()
+
+    return HttpResponse(json.dumps({'status': 'Success', 'href': href}), content_type='application/json')

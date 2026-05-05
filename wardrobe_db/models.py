@@ -75,6 +75,27 @@ class StatisticsByKeyword(Model):
         db_table = 'statistics_by_keyword'
 
 
+class StatisticsExpanded(Model):
+    totalamount = models.IntegerField()
+    lastyearamount = models.IntegerField()
+    lastmonthamount = models.IntegerField()
+
+    class Meta:
+        managed = True
+        db_table = 'statistics_expanded'
+
+
+class StatisticsByKeywordExpanded(Model):
+    keyword = models.CharField(unique=True, max_length=50, primary_key=True)
+    totalamount = models.IntegerField()
+    lastyearamount = models.IntegerField()
+    lastmonthamount = models.IntegerField()
+
+    class Meta:
+        managed = True
+        db_table = 'statistics_by_keyword_expanded'
+
+
 class OcrMission(Model):
     id = models.AutoField(primary_key=True)
     href = models.ForeignKey(Pictures, models.DO_NOTHING, db_column='href')
