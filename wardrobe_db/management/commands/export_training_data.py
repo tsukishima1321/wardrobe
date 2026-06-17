@@ -1,6 +1,7 @@
 import os
 from typing import Any
 from django.core.management.base import BaseCommand
+from django.conf import settings
 from wardrobe_db.models import Pictures, Keywords, Properties
 
 class Command(BaseCommand):
@@ -29,5 +30,5 @@ class Command(BaseCommand):
         self.stdout.write(f"Exported {len(data)} items.")
         
         import json
-        with open('training_data.json', 'w', encoding='utf-8') as f:
+        with open(os.path.join(settings.BASE_DIR, 'wardrobe_db', 'nlp', 'data', 'training_data.json'), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

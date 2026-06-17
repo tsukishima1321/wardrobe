@@ -392,7 +392,7 @@ def _parse_backup_timestamp(timestamp: Optional[str]) -> Optional[datetime.datet
 
 
 def _build_digest_module(today: datetime.date) -> Dict[str, Any]:
-    total_pictures = Pictures.objects.filter(is_collection=False).count()
+    total_pictures = Pictures.objects.filter().count()
     total_pictures_expanded = total_pictures + CollectionItems.objects.filter(collection__is_collection=True).count()
     pictures_this_month = Pictures.objects.filter(
         date__year=today.year,
