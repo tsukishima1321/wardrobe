@@ -446,6 +446,32 @@ def listCollectionItems(request: HttpRequest) -> HttpResponse:
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def reorderCollectionItems(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    collection_href = (body.get('src') or '').strip()
+    orders: List[Dict[str, Any]] = body.get('orders', [])
+
+    if not collection_href:
+        return HttpResponse('Missing src', status=400)
+    if not orders:
+        return HttpResponse('Missing orders', status=400)
+
+    collection = Pictures.objects.filter(href=collection_href, is_collection=True).first()
+    if not collection:
+        return HttpResponse('Collection not found', status=404)
+
+    for entry in orders:
+        image_href = (entry.get('image_href') or '').strip()
+        sort_order = entry.get('sort_order')
+        if not image_href or sort_order is None:
+            continue
+        CollectionItems.objects.filter(collection=collection, image_href=image_href).update(sort_order=sort_order)
+
+    return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def mergeIntoCollection(request: HttpRequest) -> HttpResponse:
     body: Dict[str, Any] = _extract_body(request)
     src_hrefs = body.get('src', [])
