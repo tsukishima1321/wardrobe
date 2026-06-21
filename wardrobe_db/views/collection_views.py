@@ -200,12 +200,17 @@ def _generate_collection_thumbnail(collection_href: str) -> None:
     )
 
     composite_path = os.path.join(settings.IMAGE_STORAGE_PATH, collection_href)
-    thumb_path = os.path.join(settings.THUMBNAILS_STORAGE_PATH, collection_href)
 
     if not items:
-        for p in [composite_path, thumb_path]:
+        for p in [composite_path]:
             if os.path.exists(p):
                 os.remove(p)
+        for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
+                          settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
+                          settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+            tp = os.path.join(thumb_dir, collection_href)
+            if os.path.exists(tp):
+                os.remove(tp)
         return
 
     images = []
@@ -240,9 +245,13 @@ def _generate_collection_thumbnail(collection_href: str) -> None:
     flat.paste(composite, mask=composite.split()[3])
     flat.save(composite_path, 'JPEG', quality=88)
 
-    # Remove cached thumbnail so it gets regenerated on next request
-    if os.path.exists(thumb_path):
-        os.remove(thumb_path)
+    # Remove cached thumbnails so they get regenerated on next request
+    for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
+                      settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
+                      settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+        tp = os.path.join(thumb_dir, collection_href)
+        if os.path.exists(tp):
+            os.remove(tp)
 
 
 @api_view(['POST'])
@@ -376,9 +385,12 @@ def removeCollectionItem(request: HttpRequest) -> HttpResponse:
         image_path = os.path.join(settings.IMAGE_STORAGE_PATH, image_href)
         if os.path.exists(image_path):
             os.remove(image_path)
-        thumb_path = os.path.join(settings.THUMBNAILS_STORAGE_PATH, image_href)
-        if os.path.exists(thumb_path):
-            os.remove(thumb_path)
+        for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
+                          settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
+                          settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+            tp = os.path.join(thumb_dir, image_href)
+            if os.path.exists(tp):
+                os.remove(tp)
 
     threading.Thread(target=_generate_collection_thumbnail, args=(collection_href,), daemon=True).start()
 
@@ -407,20 +419,26 @@ def deleteCollection(request: HttpRequest) -> HttpResponse:
             image_path = os.path.join(settings.IMAGE_STORAGE_PATH, item.image_href)
             if os.path.exists(image_path):
                 os.remove(image_path)
-            thumb_path = os.path.join(settings.THUMBNAILS_STORAGE_PATH, item.image_href)
-            if os.path.exists(thumb_path):
-                os.remove(thumb_path)
+            for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
+                              settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
+                              settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+                tp = os.path.join(thumb_dir, item.image_href)
+                if os.path.exists(tp):
+                    os.remove(tp)
 
     # Delete the collection record (CASCADE handles CollectionItems, Keywords, Properties, etc.)
     collection.delete()
 
-    # Delete the composite image and its thumbnail
+    # Delete the composite image and its thumbnails
     composite_path = os.path.join(settings.IMAGE_STORAGE_PATH, collection_href)
     if os.path.exists(composite_path):
         os.remove(composite_path)
-    thumb_path = os.path.join(settings.THUMBNAILS_STORAGE_PATH, collection_href)
-    if os.path.exists(thumb_path):
-        os.remove(thumb_path)
+    for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
+                      settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
+                      settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+        tp = os.path.join(thumb_dir, collection_href)
+        if os.path.exists(tp):
+            os.remove(tp)
 
     return HttpResponse(json.dumps({'status': 'Success'}), content_type='application/json')
 

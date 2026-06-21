@@ -216,6 +216,8 @@ REST_FRAMEWORK = {
 
 IMAGE_STORAGE_PATH = 'images/'
 THUMBNAILS_STORAGE_PATH = 'thumbnails/'
+THUMBNAILS_MEDIUM_STORAGE_PATH = 'thumbnails/medium/'
+THUMBNAILS_SMALL_STORAGE_PATH = 'thumbnails/small/'
 
 LOCALHOST = os.environ['wardrobe_localhost']
 
