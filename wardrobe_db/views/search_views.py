@@ -38,7 +38,7 @@ def search(request: HttpRequest) -> HttpResponse:
     if byName and byFullText:
         keys = searchKey.split(' ')
         for k in keys:
-            pictures = pictures.filter(description__contains=k) | pictures.filter(picturesocr__ocr_result__contains=k) | pictures.filter(properties__value__contains=k)
+            pictures = pictures.filter(description__contains=k) | pictures.filter(picturesocr__ocr_result__contains=k) | pictures.filter(properties__value__contains=k) | pictures.filter(keywords__keyword=k)
     if not byName and not byFullText:
         return HttpResponse('Invalid search method', status=400)
 

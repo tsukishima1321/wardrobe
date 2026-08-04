@@ -21,7 +21,9 @@ def getImageDetail(request: HttpRequest) -> HttpResponse:
         ocr_result = ocr_result[0].ocr_result
     else:
         ocr_result = ''
-    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result, 'is_collection': picture.is_collection}
+    keywords = [kw.keyword for kw in Keywords.objects.filter(href=src)]
+    properties = [{'name': prop.property_name, 'value': prop.value} for prop in Properties.objects.filter(href=src)]
+    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result, 'is_collection': picture.is_collection, 'keywords': keywords, 'properties': properties}
     if picture.is_collection:
         items = CollectionItems.objects.filter(collection=picture)
         response['items'] = [{'image_href': item.image_href, 'sort_order': item.sort_order, 'liked': item.liked} for item in items]
