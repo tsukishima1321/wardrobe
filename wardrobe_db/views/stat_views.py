@@ -7,13 +7,14 @@ from typing import Any, Counter as CounterType, DefaultDict, Dict, List, Optiona
 
 import jieba
 from django.db import connections
-from django.db.models import Max, Min, Q
+from django.db.models import Count, F, Max, Min, Q
 from django.http import HttpRequest, HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
 from wardrobe_db.models import Statistics, StatisticsByKeyword, StatisticsExpanded, StatisticsByKeywordExpanded, DiaryTexts, BackupRecords, Pictures, CollectionItems, Keywords, Messages, Properties, BlankPictures
 from .common import _extract_body, create_message
+from .search_views import filter_pictures_by_text
 
 REPORT_GRANULARITIES = {'day', 'month', 'year'}
 REPORT_MATCH_MODES = {'title_only', 'title_keyword_property'}
@@ -173,6 +174,120 @@ def getStatistics(request: HttpRequest) -> HttpResponse:
         typeListExpanded.append({'type': typename, 'totalAmount': s.totalamount, 'lastYearAmount': s.lastyearamount, 'lastMonthAmount': s.lastmonthamount})
     response = {'overall': overall, 'types': typeList, 'overallExpanded': overallExpanded, 'typesExpanded': typeListExpanded}
     return HttpResponse(json.dumps(response), content_type='application/json')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def propertyDistribution(request: HttpRequest) -> HttpResponse:
+    property_name = (request.GET.get('property') or '').strip()
+    search_key = (request.GET.get('searchKey') or '').strip()
+
+    try:
+        value_limit = max(1, min(int(request.GET.get('limit', 5)), 20))
+        sample_size = max(0, min(int(request.GET.get('samples', 3)), 4))
+    except (TypeError, ValueError):
+        return HttpResponse('Invalid limit or samples', status=400)
+
+    filtered_pictures = filter_pictures_by_text(
+        Pictures.objects.all(),
+        search_key,
+        by_name=True,
+        by_full_text=False,
+    ).distinct()
+    filtered_properties = Properties.objects.filter(href__in=filtered_pictures)
+
+    property_rows = list(
+        filtered_properties.values('property_name')
+        .annotate(
+            count=Count('href', distinct=True),
+            valueCount=Count('value', distinct=True),
+        )
+        .order_by('-count', 'property_name')
+    )
+    property_options = [
+        {
+            'name': row['property_name'],
+            'count': row['count'],
+            'valueCount': row['valueCount'],
+        }
+        for row in property_rows
+    ]
+
+    if not property_options:
+        return HttpResponse(json.dumps({
+            'property': '',
+            'searchKey': search_key,
+            'properties': [],
+            'summary': {
+                'totalPictures': 0,
+                'totalAssignments': 0,
+                'valueCount': 0,
+            },
+            'values': [],
+            'other': None,
+        }), content_type='application/json')
+
+    available_names = {item['name'] for item in property_options}
+    if not property_name:
+        property_name = property_options[0]['name']
+    elif property_name not in available_names:
+        if search_key:
+            property_name = property_options[0]['name']
+        else:
+            return HttpResponse('Unknown property', status=400)
+
+    property_queryset = filtered_properties.filter(property_name=property_name)
+    value_rows = list(
+        property_queryset.values('value')
+        .annotate(count=Count('href', distinct=True))
+        .order_by('-count', 'value')
+    )
+    total_pictures = property_queryset.values('href').distinct().count()
+    total_assignments = sum(row['count'] for row in value_rows)
+
+    values = []
+    for row in value_rows[:value_limit]:
+        samples = filtered_pictures.filter(
+            properties__property_name=property_name,
+            properties__value=row['value'],
+        ).distinct().order_by(F('date').desc(nulls_last=True), 'href')[:sample_size]
+        values.append({
+            'value': row['value'],
+            'count': row['count'],
+            'percentage': round(row['count'] / total_assignments * 100, 1) if total_assignments else 0,
+            'samples': [
+                {
+                    'src': picture.href,
+                    'title': picture.description or '',
+                    'date': picture.date.isoformat() if picture.date else '',
+                    'isCollection': picture.is_collection,
+                }
+                for picture in samples
+            ],
+        })
+
+    other_rows = value_rows[value_limit:]
+    other_count = sum(row['count'] for row in other_rows)
+    other = None
+    if other_rows:
+        other = {
+            'count': other_count,
+            'percentage': round(other_count / total_assignments * 100, 1) if total_assignments else 0,
+            'valueCount': len(other_rows),
+        }
+
+    return HttpResponse(json.dumps({
+        'property': property_name,
+        'searchKey': search_key,
+        'properties': property_options,
+        'summary': {
+            'totalPictures': total_pictures,
+            'totalAssignments': total_assignments,
+            'valueCount': len(value_rows),
+        },
+        'values': values,
+        'other': other,
+    }), content_type='application/json')
 
 
 def _normalize_report_term(term: Optional[str]) -> str:

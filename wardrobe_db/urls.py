@@ -25,6 +25,7 @@ urlpatterns: List[URLPattern] = [
     path('metadata/predict/', metadata_views.predictMetadata, name='predictMetadata'),
     path('metadata/reload/', metadata_views.reloadModel, name='reloadModel'),
     path('statistics/', stat_views.getStatistics, name='getStatistics'),
+    path('report/property-distribution/', stat_views.propertyDistribution, name='propertyDistribution'),
     path('report/timeline/', stat_views.timelineReport, name='timelineReport'),
     path('generatetips/', stat_views.generateTips, name='generateTips'),
     path('image/new/', image_views.newImage, name='newImage'),

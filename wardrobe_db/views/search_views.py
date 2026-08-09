@@ -3,9 +3,33 @@ from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, Keywords, Properties, SavedSearch
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count
+from django.db.models import Count, Q, QuerySet
 import json
 from .common import _extract_body
+
+
+def filter_pictures_by_text(
+    pictures: QuerySet,
+    search_key: str,
+    by_name: bool = True,
+    by_full_text: bool = False,
+) -> QuerySet:
+    if not by_name and not by_full_text:
+        raise ValueError('Invalid search method')
+
+    keys = [key for key in search_key.split(' ') if key]
+    for key in keys:
+        query = Q()
+        if by_name:
+            query |= (
+                Q(description__contains=key)
+                | Q(keywords__keyword=key)
+                | Q(properties__value__contains=key)
+            )
+        if by_full_text:
+            query |= Q(picturesocr__ocr_result__contains=key)
+        pictures = pictures.filter(query)
+    return pictures
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -26,20 +50,9 @@ def search(request: HttpRequest) -> HttpResponse:
     excludedProperties = body.get('excludedProperties', [])
     propertiesPrecise = body.get('propertiesPrecise', False)
 
-    pictures = Pictures.objects.all()
-    if byName and not byFullText:
-        keys = searchKey.split(' ')
-        for k in keys:
-            pictures = pictures.filter(description__contains=k) | pictures.filter(keywords__keyword=k) | pictures.filter(properties__value__contains=k)
-    if byFullText and not byName:
-        keys = searchKey.split(' ')
-        for k in keys:
-            pictures = pictures.filter(picturesocr__ocr_result__contains=k)
-    if byName and byFullText:
-        keys = searchKey.split(' ')
-        for k in keys:
-            pictures = pictures.filter(description__contains=k) | pictures.filter(picturesocr__ocr_result__contains=k) | pictures.filter(properties__value__contains=k) | pictures.filter(keywords__keyword=k)
-    if not byName and not byFullText:
+    try:
+        pictures = filter_pictures_by_text(Pictures.objects.all(), searchKey, byName, byFullText)
+    except ValueError:
         return HttpResponse('Invalid search method', status=400)
 
     for kw in keywords:
