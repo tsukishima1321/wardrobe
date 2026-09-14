@@ -208,7 +208,7 @@ def _generate_collection_thumbnail(collection_href: str) -> None:
         for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                           settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
                           settings.THUMBNAILS_SMALL_STORAGE_PATH]:
-            tp = os.path.join(thumb_dir, collection_href)
+            tp = os.path.join(thumb_dir, collection_href + '.avif')
             if os.path.exists(tp):
                 os.remove(tp)
         return
@@ -249,7 +249,7 @@ def _generate_collection_thumbnail(collection_href: str) -> None:
     for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                       settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
                       settings.THUMBNAILS_SMALL_STORAGE_PATH]:
-        tp = os.path.join(thumb_dir, collection_href)
+        tp = os.path.join(thumb_dir, collection_href + '.avif')
         if os.path.exists(tp):
             os.remove(tp)
 
@@ -388,7 +388,7 @@ def removeCollectionItem(request: HttpRequest) -> HttpResponse:
         for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                           settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
                           settings.THUMBNAILS_SMALL_STORAGE_PATH]:
-            tp = os.path.join(thumb_dir, image_href)
+            tp = os.path.join(thumb_dir, image_href + '.avif')
             if os.path.exists(tp):
                 os.remove(tp)
 
@@ -422,7 +422,7 @@ def deleteCollection(request: HttpRequest) -> HttpResponse:
             for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                               settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
                               settings.THUMBNAILS_SMALL_STORAGE_PATH]:
-                tp = os.path.join(thumb_dir, item.image_href)
+                tp = os.path.join(thumb_dir, item.image_href + '.avif')
                 if os.path.exists(tp):
                     os.remove(tp)
 
@@ -436,7 +436,7 @@ def deleteCollection(request: HttpRequest) -> HttpResponse:
     for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                       settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
                       settings.THUMBNAILS_SMALL_STORAGE_PATH]:
-        tp = os.path.join(thumb_dir, collection_href)
+        tp = os.path.join(thumb_dir, collection_href + '.avif')
         if os.path.exists(tp):
             os.remove(tp)
 
