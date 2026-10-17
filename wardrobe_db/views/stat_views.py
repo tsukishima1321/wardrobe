@@ -12,7 +12,7 @@ from django.http import HttpRequest, HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
-from wardrobe_db.models import Statistics, StatisticsByKeyword, StatisticsExpanded, StatisticsByKeywordExpanded, DiaryTexts, BackupRecords, Pictures, CollectionItems, Keywords, Messages, Properties, BlankPictures
+from wardrobe_db.models import Statistics, StatisticsByKeyword, StatisticsExpanded, StatisticsByKeywordExpanded, BlogPost, BackupRecords, Pictures, CollectionItems, Keywords, Messages, Properties, BlankPictures
 from .common import _extract_body, create_message
 from .search_views import filter_pictures_by_text
 
@@ -30,7 +30,7 @@ def updateStatistics() -> None:
 @permission_classes([IsAuthenticated])
 def generateTips(request: HttpRequest) -> HttpResponse:
     # 提醒用户写日记和备份
-    lastDiaryDate = DiaryTexts.objects.aggregate(max_date=Max('date'))['max_date']
+    lastDiaryDate = BlogPost.objects.filter(status='published').aggregate(max_date=Max('date'))['max_date']
     if lastDiaryDate:
         daysSinceLastDiary = (datetime.datetime.now().date() - lastDiaryDate).days
         if daysSinceLastDiary >= 3:
@@ -139,7 +139,7 @@ def generateTips(request: HttpRequest) -> HttpResponse:
                 report_lines.append("\n")
 
             # Diary summary
-            diary_count = DiaryTexts.objects.filter(date__year=year, date__month=month).count()
+            diary_count = BlogPost.objects.filter(status='published', date__year=year, date__month=month).count()
             report_lines.append(f"### Diary\n")
             report_lines.append(f"You wrote **{diary_count}** diary entries.\n")
             

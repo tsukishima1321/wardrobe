@@ -6,3 +6,4 @@ from .stat_views import *
 from .backup_views import *
 from .message_views import *
 from .diary_views import *
+from .blog_views import *

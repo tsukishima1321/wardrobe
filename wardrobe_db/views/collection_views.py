@@ -12,6 +12,7 @@ from django.conf import settings
 from PIL import Image, ImageDraw
 from .common import LOCALHOST, _extract_body
 from wardrobe_db.nlp.model import nlp_engine
+from wardrobe_db.blog_service import is_image_referenced
 
 _CANVAS = 600          # Final composite is _CANVAS x _CANVAS pixels
 _GAP = 4               # Gap between cells (pixels)
@@ -207,7 +208,8 @@ def _generate_collection_thumbnail(collection_href: str) -> None:
                 os.remove(p)
         for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                           settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
-                          settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+                          settings.THUMBNAILS_SMALL_STORAGE_PATH,
+                          settings.THUMBNAILS_LARGE_STORAGE_PATH]:
             tp = os.path.join(thumb_dir, collection_href + '.avif')
             if os.path.exists(tp):
                 os.remove(tp)
@@ -248,7 +250,8 @@ def _generate_collection_thumbnail(collection_href: str) -> None:
     # Remove cached thumbnails so they get regenerated on next request
     for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                       settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
-                      settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+                      settings.THUMBNAILS_SMALL_STORAGE_PATH,
+                      settings.THUMBNAILS_LARGE_STORAGE_PATH]:
         tp = os.path.join(thumb_dir, collection_href + '.avif')
         if os.path.exists(tp):
             os.remove(tp)
@@ -381,13 +384,15 @@ def removeCollectionItem(request: HttpRequest) -> HttpResponse:
     # Delete the image file only if not referenced elsewhere
     other_refs = CollectionItems.objects.filter(image_href=image_href).exists()
     is_standalone = Pictures.objects.filter(href=image_href).exists()
-    if not other_refs and not is_standalone:
+    is_blog_ref = is_image_referenced(image_href)
+    if not other_refs and not is_standalone and not is_blog_ref:
         image_path = os.path.join(settings.IMAGE_STORAGE_PATH, image_href)
         if os.path.exists(image_path):
             os.remove(image_path)
         for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                           settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
-                          settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+                          settings.THUMBNAILS_SMALL_STORAGE_PATH,
+                          settings.THUMBNAILS_LARGE_STORAGE_PATH]:
             tp = os.path.join(thumb_dir, image_href + '.avif')
             if os.path.exists(tp):
                 os.remove(tp)
@@ -410,18 +415,26 @@ def deleteCollection(request: HttpRequest) -> HttpResponse:
     if not collection:
         return HttpResponse('Collection not found', status=404)
 
+    items = list(CollectionItems.objects.filter(collection=collection))
+    if is_image_referenced(collection_href) or any(is_image_referenced(item.image_href) for item in items):
+        return HttpResponse(
+            json.dumps({'error': {'message': '该合集或其中图片仍被文章引用，请先移除引用'}}),
+            status=409,
+            content_type='application/json',
+        )
+
     # Delete all item image files that are not referenced elsewhere
-    items = CollectionItems.objects.filter(collection=collection)
     for item in items:
         other_refs = CollectionItems.objects.filter(image_href=item.image_href).exclude(collection=collection).exists()
         is_standalone = Pictures.objects.filter(href=item.image_href).exists()
-        if not other_refs and not is_standalone:
+        if not other_refs and not is_standalone and not is_image_referenced(item.image_href):
             image_path = os.path.join(settings.IMAGE_STORAGE_PATH, item.image_href)
             if os.path.exists(image_path):
                 os.remove(image_path)
             for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                               settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
-                              settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+                              settings.THUMBNAILS_SMALL_STORAGE_PATH,
+                              settings.THUMBNAILS_LARGE_STORAGE_PATH]:
                 tp = os.path.join(thumb_dir, item.image_href + '.avif')
                 if os.path.exists(tp):
                     os.remove(tp)
@@ -435,7 +448,8 @@ def deleteCollection(request: HttpRequest) -> HttpResponse:
         os.remove(composite_path)
     for thumb_dir in [settings.THUMBNAILS_STORAGE_PATH,
                       settings.THUMBNAILS_MEDIUM_STORAGE_PATH,
-                      settings.THUMBNAILS_SMALL_STORAGE_PATH]:
+                      settings.THUMBNAILS_SMALL_STORAGE_PATH,
+                      settings.THUMBNAILS_LARGE_STORAGE_PATH]:
         tp = os.path.join(thumb_dir, collection_href + '.avif')
         if os.path.exists(tp):
             os.remove(tp)

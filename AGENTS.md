@@ -12,7 +12,7 @@ Wardrobe is a Django backend for a personal image knowledge base system, with th
 - OCR task queue management and batch execution.
 - NLP-assisted metadata prediction (keyword/property inference from description text).
 - Collection feature: grouped images with generated collage cover images.
-- Diary and message center (including SSE stream for near-real-time notifications).
+- Blog/diary and message center (including SSE stream for near-real-time notifications).
 - Statistics and monthly report generation.
 - Timeline report generation for a selected word, including time-bucketed picture counts and related title words / keywords / property values.
 - Encrypted PostgreSQL backup and backup record management.
@@ -74,7 +74,7 @@ Main endpoint groups:
 - Statistics and tips/report generation, including `/report/timeline/` for word-based timeline reports.
 - Backup records and backup file operations.
 - Message center list/read/delete/clear and stream (SSE-like endpoint).
-- Diary CRUD and search.
+- Blog CRUD, rich-text content, tags, archive, search, image backlinks and legacy `/diary/*` compatibility.
 - Collection CRUD, like/list, and merge-into-collection (`/collection/merge/`).
 
 ## 4. Core Data Model (`wardrobe_db/models.py`)
@@ -90,7 +90,8 @@ Key business entities:
 - `SavedSearch`: named search filter presets.
 - `BackupRecords`: backup timestamp + comment ledger.
 - `Messages`: notification center entries.
-- `DiaryTexts`: diary records.
+- `DiaryTexts`: legacy diary table retained for migration/rollback.
+- `BlogPost`, `BlogTag`, `BlogPostTag`, `BlogPostImage`, `BlogPostRevision`: rich blog content, tags, image links and revisions.
 - `BlankPictures`: images marked as unprocessed.
 - `UserDictionary`: custom segmentation dictionary for NLP.
 - `Statistics` + `StatisticsByKeyword`: summary and keyword dimensions (compact: collections count as 1).
@@ -191,7 +192,7 @@ Responsibilities:
   - **expanded** (`overallExpanded` / `typesExpanded`): collection items counted individually.
 - Build timeline report data for a selected word, with day/month/year buckets and relation summaries.
 - Generate reminder/report messages:
-  - Diary inactivity reminders.
+  - Blog inactivity reminders.
   - Backup inactivity warnings.
   - Blank image processing reminders.
   - Monthly report on day 7 (now includes expanded picture count).
@@ -231,6 +232,15 @@ Responsibilities:
 
 - Diary search and CRUD operations.
 - Supports pagination and date range filtering.
+
+### 5.10.1 Blog subsystem (`blog_content.py`, `blog_service.py`, `blog_views.py`)
+
+- TipTap/ProseMirror JSON is the canonical content format; sanitized HTML and plain text are stored alongside it.
+- `nh3` sanitizes HTML server-side; image URLs are restricted to `/imagebed/`.
+- `blog_service.sync_post_images` auto-registers referenced images, resolves collection items to their parent collection, and maintains `blog_post_images` backlinks.
+- `/api/blog/*` provides posts, publish/unpublish, autosave, search, tags, archive, image listing and image-link repair.
+- Legacy `/api/diary/*` handlers now read/write `BlogPost` and keep the old `id/date/text` response shape.
+- Large inline thumbnails use `THUMBNAILS_LARGE_STORAGE_PATH` (`thumbnails/large/`).
 
 ## 5.11 Shared helpers (`wardrobe_db/views/common.py`)
 

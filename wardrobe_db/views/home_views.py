@@ -3,7 +3,7 @@ import random
 from collections import Counter, defaultdict
 from typing import Dict, Any, Optional, List, Tuple, Counter as CounterType, DefaultDict, Set, Callable
 
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.http import HttpRequest, HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -13,7 +13,7 @@ from wardrobe_db.models import (
     BackupRecords,
     BlankPictures,
     CollectionItems,
-    DiaryTexts,
+    BlogPost,
     Keywords,
     Messages,
     Pictures,
@@ -48,26 +48,32 @@ def _serialize_picture(picture: Pictures, keyword_map: Optional[Dict[str, List[s
     }
 
 
-def _serialize_diary(diary: DiaryTexts, theme_label: Optional[str] = None) -> Dict[str, Any]:
+def _serialize_diary(diary: BlogPost, theme_label: Optional[str] = None) -> Dict[str, Any]:
+    text = diary.content_text or ''
     preview = ''
     if theme_label:
-        index = diary.text.find(theme_label)
+        index = text.find(theme_label)
         if index != -1:
             start = max(0, index - 40)
-            end = min(len(diary.text), index + len(theme_label) + 40)
-            preview = diary.text[start:end]
+            end = min(len(text), index + len(theme_label) + 40)
+            preview = text[start:end]
             if start > 0:
                 preview = '...' + preview
-            if end < len(diary.text):
+            if end < len(text):
                 preview = preview + '...'
     if not preview:
-        preview = diary.text.strip().replace('\n', ' ')
+        preview = (diary.excerpt or text).strip().replace('\n', ' ')
     if len(preview) > 140:
         preview = preview[:137] + '...'
     return {
         'id': diary.id,
-        'date': diary.date.strftime('%Y-%m-%d'),
-        'text': diary.text,
+        'date': diary.date.strftime('%Y-%m-%d') if diary.date else '',
+        'text': text,
+        'title': diary.title,
+        'kind': diary.kind,
+        'status': diary.status,
+        'coverImageHref': diary.cover_image_href,
+        'tags': [tag.name for tag in diary.tags.all()],
         'preview': preview,
     }
 
@@ -170,7 +176,7 @@ def _build_on_this_day_module(today: datetime.date) -> Dict[str, Any]:
             picture_candidates.append((picture, day_distance))
 
     diary_candidates = []
-    for diary in DiaryTexts.objects.all():
+    for diary in BlogPost.objects.filter(status='published', date__isnull=False).prefetch_related('tags'):
         if diary.date.year == today.year:
             continue
         day_distance = _day_distance_ignoring_year(diary.date, today)
@@ -309,14 +315,28 @@ def _build_remix_subtitle(theme: Dict[str, Any], anchor: Pictures, related_pictu
     return f'从不同年份的 {theme["label"]} 里，抽出几张彼此呼应的照片。'
 
 
-def _build_related_diaries(theme: Dict[str, Any], anchor: Pictures) -> List[DiaryTexts]:
+def _build_related_diaries(theme: Dict[str, Any], anchor: Pictures) -> List[BlogPost]:
     if theme['kind'] in {'keyword', 'property'}:
-        diaries = list(DiaryTexts.objects.filter(text__contains=theme['label']).order_by('-date')[:HOME_REMIX_DIARY_LIMIT])
+        diaries = list(
+            BlogPost.objects.filter(
+                Q(content_text__icontains=theme['label'])
+                | Q(title__icontains=theme['label'])
+                | Q(tags__name__icontains=theme['label']),
+                status='published',
+            )
+            .prefetch_related('tags')
+            .distinct()
+            .order_by('-date', '-id')[:HOME_REMIX_DIARY_LIMIT]
+        )
         if diaries:
             return diaries
     if not anchor.date:
         return []
-    diaries = list(DiaryTexts.objects.filter(date__month=anchor.date.month).order_by('-date')[:HOME_REMIX_DIARY_LIMIT])
+    diaries = list(
+        BlogPost.objects.filter(status='published', date__month=anchor.date.month)
+        .prefetch_related('tags')
+        .order_by('-date', '-id')[:HOME_REMIX_DIARY_LIMIT]
+    )
     return diaries
 
 
@@ -410,8 +430,8 @@ def _build_digest_module(today: datetime.date) -> Dict[str, Any]:
             collection__date__month=today.month,
         ).count()
     )
-    diaries_this_month = DiaryTexts.objects.filter(date__year=today.year, date__month=today.month).count()
-    last_diary_date = DiaryTexts.objects.aggregate(max_date=Max('date'))['max_date']
+    diaries_this_month = BlogPost.objects.filter(status='published', date__year=today.year, date__month=today.month).count()
+    last_diary_date = BlogPost.objects.filter(status='published').aggregate(max_date=Max('date'))['max_date']
     days_since_last_diary = (today - last_diary_date).days if last_diary_date else None
     blank_count = BlankPictures.objects.count()
     unread_messages = Messages.objects.filter(status='unread').count()

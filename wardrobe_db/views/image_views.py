@@ -9,6 +9,7 @@ import random as rand
 from django.conf import settings
 from .common import LOCALHOST, _extract_body
 from wardrobe_db.nlp.model import nlp_engine
+from wardrobe_db.blog_service import get_image_usage, is_image_referenced
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -23,7 +24,7 @@ def getImageDetail(request: HttpRequest) -> HttpResponse:
         ocr_result = ''
     keywords = [kw.keyword for kw in Keywords.objects.filter(href=src)]
     properties = [{'name': prop.property_name, 'value': prop.value} for prop in Properties.objects.filter(href=src)]
-    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result, 'is_collection': picture.is_collection, 'keywords': keywords, 'properties': properties}
+    response = {'src': picture.href, 'title': picture.description, 'date': picture.date.strftime('%Y-%m-%d') if picture.date else None, 'text': ocr_result, 'is_collection': picture.is_collection, 'keywords': keywords, 'properties': properties, 'usedInPosts': get_image_usage(picture.href)}
     if picture.is_collection:
         items = CollectionItems.objects.filter(collection=picture)
         response['items'] = [{'image_href': item.image_href, 'sort_order': item.sort_order, 'liked': item.liked} for item in items]
@@ -56,6 +57,12 @@ def deleteImage(request: HttpRequest) -> HttpResponse:
         return HttpResponse('Invalid picture', status=400)
     if picture.is_collection:
         return HttpResponse('Use collection/delete/ endpoint for collections', status=400)
+    if is_image_referenced(src):
+        return HttpResponse(
+            json.dumps({'error': {'message': '该图片仍被文章引用，请先移除引用或文章'}}),
+            status=409,
+            content_type='application/json',
+        )
     picture.delete()
     ocr_result = PicturesOcr.objects.filter(href=src)
     if ocr_result:

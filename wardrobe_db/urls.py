@@ -1,6 +1,6 @@
 from typing import List
 from django.urls import URLPattern, path
-from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views, diary_views, collection_views, home_views
+from .views import image_views, search_views, metadata_views, ocr_views, stat_views, backup_views, message_views, diary_views, collection_views, home_views, blog_views
 
 app_name: str = 'wardrobe_db'
 
@@ -50,6 +50,16 @@ urlpatterns: List[URLPattern] = [
     path('message/read/', message_views.readMessage, name='readMessage'),
     path('message/clear_read/', message_views.clearMessage, name='clear_read'),
     path('message/stream/', message_views.streamMessages, name='streamMessages'),
+    path('blog/posts/', blog_views.posts_collection, name='blogPosts'),
+    path('blog/posts/<int:post_id>/', blog_views.post_detail, name='blogPostDetail'),
+    path('blog/posts/<int:post_id>/publish/', blog_views.publish_post, name='blogPublishPost'),
+    path('blog/posts/<int:post_id>/unpublish/', blog_views.unpublish_post, name='blogUnpublishPost'),
+    path('blog/posts/<int:post_id>/autosave/', blog_views.autosave_post, name='blogAutosavePost'),
+    path('blog/posts/<int:post_id>/images/', blog_views.list_post_images, name='blogPostImages'),
+    path('blog/posts/<int:post_id>/images/sync/', blog_views.sync_post_image_links, name='blogPostImagesSync'),
+    path('blog/search/', blog_views.search_posts, name='blogSearch'),
+    path('blog/tags/', blog_views.list_tags, name='blogTags'),
+    path('blog/archive/', blog_views.list_archive, name='blogArchive'),
     path('diary/search/', diary_views.search, name='search'),
     path('diary/get/', diary_views.getDiaryTexts, name='getDiaryTexts'),
     path('diary/new/', diary_views.newDiaryText, name='newDiaryText'),

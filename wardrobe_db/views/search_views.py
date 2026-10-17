@@ -82,8 +82,8 @@ def search(request: HttpRequest) -> HttpResponse:
 
     
     pictures = pictures.distinct()
-    totalPage = len(pictures) // pageSize + 1
     total = len(pictures)
+    totalPage = (total + pageSize - 1) // pageSize if total else 0
     if page > totalPage:
         return HttpResponse('Invalid page number', status=400)
     
