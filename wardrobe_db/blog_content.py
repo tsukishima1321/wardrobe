@@ -25,7 +25,7 @@ ALLOWED_TAGS = {
 ALLOWED_ATTRIBUTES = {
     "*": {"class"},
     "a": {"href", "title", "target", "data-image-ref"},
-    "img": {"src", "alt", "title", "width", "height", "data-image-href", "data-caption"},
+    "img": {"src", "alt", "title", "width", "height", "style", "data-image-href", "data-caption"},
     "p": {"style"},
     "h1": {"style"},
     "h2": {"style"},
@@ -75,7 +75,7 @@ def sanitize_html(value: str) -> str:
         url_schemes=ALLOWED_URL_SCHEMES,
         link_rel="noopener noreferrer",
         attribute_filter=_attribute_filter,
-        filter_style_properties={"text-align"},
+        filter_style_properties={"text-align", "width"},
         strip_comments=True,
     )
 
@@ -153,24 +153,43 @@ def extract_text_from_tiptap(doc: Any) -> str:
     return normalize_text(_node_text(doc))
 
 
+def _split_plain_text_blocks(text: str) -> List[str]:
+    normalized = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    normalized = re.sub(r"\n[ \t]*\n(?:[ \t]*\n)*", "\n\n", normalized)
+    normalized = normalized.strip("\n")
+    if not normalized.strip():
+        return []
+    return [block for block in normalized.split("\n\n") if block.strip()]
+
+
 def plain_text_to_doc(text: str) -> Dict[str, Any]:
-    lines = (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    """Convert plain text while preserving single line breaks.
+
+    A blank line separates paragraphs. Single newlines become hard breaks
+    inside the same paragraph.
+    """
     content = []
-    for line in lines:
-        if line:
-            content.append({"type": "paragraph", "content": [{"type": "text", "text": line}]})
-        else:
-            content.append({"type": "paragraph"})
+    for block in _split_plain_text_blocks(text):
+        paragraph_content: List[Dict[str, Any]] = []
+        for index, line in enumerate(block.split("\n")):
+            if index:
+                paragraph_content.append({"type": "hardBreak"})
+            if line:
+                paragraph_content.append({"type": "text", "text": line})
+        content.append({
+            "type": "paragraph",
+            "content": paragraph_content,
+        } if paragraph_content else {"type": "paragraph"})
     return {"type": "doc", "content": content or [{"type": "paragraph"}]}
 
 
 def plain_text_to_html(text: str) -> str:
-    lines = (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
     parts = []
-    for line in lines:
-        escaped = html.escape(line)
-        parts.append(f"<p>{escaped}</p>" if escaped else "<p><br></p>")
-    return "".join(parts)
+    for block in _split_plain_text_blocks(text):
+        lines = block.split("\n")
+        escaped = "<br>".join(html.escape(line) for line in lines)
+        parts.append(f"<p>{escaped}</p>")
+    return "".join(parts) or "<p></p>"
 
 
 def make_excerpt(text: str, limit: int = 160) -> str:

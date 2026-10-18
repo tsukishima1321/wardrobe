@@ -236,11 +236,14 @@ Responsibilities:
 ### 5.10.1 Blog subsystem (`blog_content.py`, `blog_service.py`, `blog_views.py`)
 
 - TipTap/ProseMirror JSON is the canonical content format; sanitized HTML and plain text are stored alongside it.
-- `nh3` sanitizes HTML server-side; image URLs are restricted to `/imagebed/`.
+- `nh3` sanitizes HTML server-side; image URLs are restricted to `/imagebed/`; image `style` allows only `width`/`text-align`.
+- Blog images support editor-side resize presets/drag handles; width is stored in TipTap JSON and rendered as an inline percentage width.
 - `blog_service.sync_post_images` auto-registers referenced images, resolves collection items to their parent collection, and maintains `blog_post_images` backlinks.
 - `/api/blog/*` provides posts, publish/unpublish, autosave, search, tags, archive, image listing and image-link repair.
+- `/api/collection/search/` lists collections; `/api/collection/list/` now returns item metadata and parent collection context for the blog image picker.
 - Legacy `/api/diary/*` handlers now read/write `BlogPost` and keep the old `id/date/text` response shape.
 - Large inline thumbnails use `THUMBNAILS_LARGE_STORAGE_PATH` (`thumbnails/large/`).
+- Legacy plain-text conversion preserves single newlines as hard breaks; only blank lines separate paragraphs. Use `migrate_diary_to_blog --refresh-existing` to rebuild already migrated content.
 
 ## 5.11 Shared helpers (`wardrobe_db/views/common.py`)
 

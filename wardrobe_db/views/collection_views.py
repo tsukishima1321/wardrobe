@@ -1,4 +1,5 @@
 from typing import Dict, Any, Optional, List, Tuple
+from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse
 from wardrobe_db.models import Pictures, CollectionItems, Keywords, Properties, PicturesOcr
 from rest_framework.decorators import api_view, permission_classes
@@ -459,6 +460,47 @@ def deleteCollection(request: HttpRequest) -> HttpResponse:
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def searchCollections(request: HttpRequest) -> HttpResponse:
+    body: Dict[str, Any] = _extract_body(request)
+    search_key = str(body.get('searchKey', '') or '').strip()
+    try:
+        page = max(1, int(body.get('page', 1)))
+        page_size = min(100, max(1, int(body.get('pageSize', 24))))
+    except (TypeError, ValueError):
+        page, page_size = 1, 24
+
+    collections = Pictures.objects.filter(is_collection=True)
+    if search_key:
+        collections = collections.filter(
+            Q(description__icontains=search_key) | Q(href__icontains=search_key)
+        )
+    collections = collections.annotate(item_count=Count('collection_items')).order_by('-date', 'href')
+
+    total = collections.count()
+    total_page = (total + page_size - 1) // page_size if total else 0
+    if total_page and page > total_page:
+        page = total_page
+    start = (page - 1) * page_size
+    rows = collections[start:start + page_size]
+
+    items = [{
+        'src': collection.href,
+        'title': collection.description or collection.href,
+        'date': collection.date.strftime('%Y-%m-%d') if collection.date else '',
+        'itemCount': collection.item_count,
+    } for collection in rows]
+
+    return HttpResponse(json.dumps({
+        'items': items,
+        'total': total,
+        'totalPage': total_page,
+        'page': page,
+        'pageSize': page_size,
+    }), content_type='application/json')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def listCollectionItems(request: HttpRequest) -> HttpResponse:
     body: Dict[str, Any] = _extract_body(request)
     collection_href = (body.get('src') or '').strip()
@@ -470,8 +512,28 @@ def listCollectionItems(request: HttpRequest) -> HttpResponse:
     if not collection:
         return HttpResponse('Collection not found', status=404)
 
-    items = CollectionItems.objects.filter(collection=collection)
-    data = [{'image_href': item.image_href, 'sort_order': item.sort_order, 'liked': item.liked} for item in items]
+    items = list(CollectionItems.objects.filter(collection=collection))
+    picture_map = {
+        picture['href']: picture
+        for picture in Pictures.objects.filter(
+            href__in=[item.image_href for item in items]
+        ).values('href', 'description', 'date')
+    }
+
+    data = []
+    collection_title = collection.description or collection.href
+    for item in items:
+        picture = picture_map.get(item.image_href)
+        item_date = (picture or {}).get('date') or collection.date
+        data.append({
+            'image_href': item.image_href,
+            'sort_order': item.sort_order,
+            'liked': item.liked,
+            'title': (picture or {}).get('description') or f'{collection_title} · {item.sort_order}',
+            'date': item_date.strftime('%Y-%m-%d') if item_date else '',
+            'collection_href': collection.href,
+            'collection_title': collection_title,
+        })
 
     return HttpResponse(json.dumps(data), content_type='application/json')
 

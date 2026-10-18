@@ -37,13 +37,23 @@ class BlogContentTests(unittest.TestCase):
         self.assertIn("列表项", text)
 
     def test_plain_text_roundtrip(self):
-        doc = plain_text_to_doc("第一行\n\n第二行")
+        doc = plain_text_to_doc("第一行\n第二行\n\n第三行")
         self.assertEqual(doc["type"], "doc")
-        self.assertEqual(len(doc["content"]), 3)
-        html = plain_text_to_html("第一行\n\n第二行")
-        self.assertIn("<p>第一行</p>", html)
-        self.assertIn("<p><br></p>", html)
-        self.assertIn("<p>第二行</p>", html)
+        self.assertEqual(len(doc["content"]), 2)
+        first_paragraph = doc["content"][0]
+        self.assertEqual(first_paragraph["content"][0]["text"], "第一行")
+        self.assertEqual(first_paragraph["content"][1]["type"], "hardBreak")
+        self.assertEqual(first_paragraph["content"][2]["text"], "第二行")
+        self.assertEqual(doc["content"][1]["content"][0]["text"], "第三行")
+
+        html = plain_text_to_html("第一行\n第二行\n\n第三行")
+        self.assertIn("<p>第一行<br>第二行</p>", html)
+        self.assertIn("<p>第三行</p>", html)
+        self.assertNotIn("<p><br></p>", html)
+
+        collapsed = plain_text_to_doc("第一行\n\n\n\n第二行")
+        self.assertEqual(len(collapsed["content"]), 2)
+        self.assertEqual(len(plain_text_to_doc("").get("content", [])), 1)
 
     def test_sanitize_blocks_xss(self):
         dirty = (
@@ -75,6 +85,15 @@ class BlogContentTests(unittest.TestCase):
         self.assertIn("text-align:center", clean)
         self.assertNotIn("color:red", clean)
         self.assertNotIn("position:fixed", clean)
+
+    def test_sanitize_image_width_style(self):
+        href = "e" * 32 + ".jpg"
+        clean = sanitize_html(
+            f'<img src="/imagebed/{href}" style="width:50%;height:100px;position:fixed" alt="图">'
+        )
+        self.assertIn("width:50%", clean)
+        self.assertNotIn("height", clean)
+        self.assertNotIn("position", clean)
 
     def test_collect_image_refs(self):
         href = "b" * 32 + ".png"
